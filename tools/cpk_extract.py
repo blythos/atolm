@@ -853,28 +853,196 @@ def main():
                     w.writeframes(audio_data)
                 print(f"Saved Audio: {path}")
             
-            # Save Video Frames
-            print("Initializing Cinepak Decoder...")
+            # Save Video Frames + Mux to AVI
+            print("Initializing Cinepak Decoder and AVI Muxer...")
             decoder = CinepakDecoder(film.header['width'], film.header['height'])
+            
+            avi_path = os.path.join(args.output, f"{os.path.basename(cpk_path)}.avi")
+            muxer = AviMuxer(avi_path, film.header['width'], film.header['height'], fps=15) # Assuming 15fps
             
             v_idx = 0
             for v_data in film.extract_video_frames():
                 try:
                     img = decoder.decode_frame(v_data)
                     if img:
-                        png_path = os.path.join(args.output, f"frame_{v_idx:04d}.png")
-                        img.save(png_path)
+                        # Mux to AVI
+                        muxer.add_frame(img)
+                        
                 except Exception as e:
                     print(f"Error decoding frame {v_idx}: {e}")
                 v_idx += 1
                 if v_idx % 100 == 0:
-                    print(f"Saved {v_idx} frames...")
-            print(f"Saved {v_idx} video frames.")
-                
+                    print(f"Processed {v_idx} frames...")
+            
+            muxer.close()
+            print(f"Saved AVI Video: {avi_path}")
+            print(f"Processed {v_idx} video frames.")
+
         except Exception as e:
             print(f"Failed to parse FILM: {e}")
             import traceback
             traceback.print_exc()
+
+class AviMuxer:
+    def __init__(self, filename, width, height, fps=15):
+        self.filename = filename
+        self.width = width
+        self.height = height
+        self.fps = fps
+        self.frames = []
+        self.idx = []
+        self.movi_offset = 0
+
+    def add_frame(self, img):
+        import io
+        output = io.BytesIO()
+        img.save(output, format='JPEG')
+        jpeg_data = output.getvalue()
+        self.frames.append(jpeg_data)
+
+    def close(self):
+        with open(self.filename, 'wb') as f:
+            # Write RIFF header placeholder
+            f.write(b'RIFF\0\0\0\0AVI ')
+            
+            # Write hdrl LIST
+            self._write_hdrl_list(f)
+            
+            # Write movi LIST
+            # offsets in idx1 are relative to the 'movi' 4cc code (not the LIST start)
+            movi_list_start = f.tell()
+            f.write(b'LIST\0\0\0\0movi')
+            saved_movi_pos = f.tell() - 4
+            movi_base_offset = f.tell() # Pointing to after 'movi', effectively +12 from start?
+            # Wait, standard says relative to the 'movi' identifier.
+            # The 'movi' identifier is at movi_list_start + 8.
+            movi_id_pos = movi_list_start + 8
+            
+            # Write frames
+            for i, frame_data in enumerate(self.frames):
+                # Align chunk to word boundary
+                if f.tell() % 2 != 0:
+                    f.write(b'\0')
+
+                # Calculate offset relative to 'movi' 4cc
+                current_pos = f.tell()
+                offset = current_pos - movi_id_pos
+                
+                size = len(frame_data)
+                
+                f.write(b'00dc')
+                f.write(struct.pack('<I', size))
+                f.write(frame_data)
+                
+                # Pad payload if odd (not included in size)
+                if size % 2 != 0:
+                    f.write(b'\0')
+                
+                # Flags: 0x10 = Keyframe (all MJPEG frames are keyframes)
+                self.idx.append((0x63643030, 0x10, offset, size))
+                
+            movi_size = f.tell() - movi_list_start - 8
+            current_pos = f.tell()
+            f.seek(saved_movi_pos)
+            f.write(struct.pack('<I', movi_size))
+            f.seek(current_pos)
+            
+            # Write idx1
+            self._write_idx1(f)
+            
+            # Update RIFF size
+            file_size = f.tell() - 8
+            f.seek(4)
+            f.write(struct.pack('<I', file_size))
+
+    def _write_hdrl_list(self, f):
+        # Calculate microseconds per frame
+        us_per_frame = int(1000000 / self.fps)
+        num_frames = len(self.frames)
+        
+        hdrl_start = f.tell()
+        f.write(b'LIST\0\0\0\0hdrl')
+        saved_hdrl_pos = f.tell() - 4
+        
+        # avih
+        f.write(b'avih')
+        f.write(struct.pack('<I', 56)) # Size of avih
+        f.write(struct.pack('<I', us_per_frame)) # Microsec per frame
+        f.write(struct.pack('<I', 0)) # Max bytes per sec (approx)
+        f.write(struct.pack('<I', 0)) # Padding
+        f.write(struct.pack('<I', 0x10)) # Flags (AVIF_HASINDEX)
+        f.write(struct.pack('<I', num_frames)) # Total Frames
+        f.write(struct.pack('<I', 0)) # Initial Frames
+        f.write(struct.pack('<I', 1)) # Streams
+        f.write(struct.pack('<I', 0)) # Suggested BufferSize
+        f.write(struct.pack('<I', self.width)) # Width
+        f.write(struct.pack('<I', self.height)) # Height
+        f.write(b'\0' * 16) # Reserved
+        
+        # strl LIST
+        strl_start = f.tell()
+        f.write(b'LIST\0\0\0\0strl')
+        saved_strl_pos = f.tell() - 4
+        
+        # strh
+        f.write(b'strh')
+        f.write(struct.pack('<I', 56)) # Size
+        f.write(b'vids') # Type
+        f.write(b'MJPG') # Handler
+        f.write(b'\0\0\0\0') # Flags
+        f.write(b'\0\0') # Priority
+        f.write(b'\0\0') # Language
+        f.write(b'\0\0\0\0') # Initial Frames
+        f.write(struct.pack('<I', 1)) # Scale
+        f.write(struct.pack('<I', self.fps)) # Rate
+        f.write(b'\0\0\0\0') # Start
+        f.write(struct.pack('<I', num_frames)) # Length
+        f.write(struct.pack('<I', 0)) # Suggested Buffer Size
+        f.write(struct.pack('<I', 10000)) # Quality
+        f.write(struct.pack('<I', 0)) # Sample Size
+        f.write(struct.pack('<H', 0)) # Frame left
+        f.write(struct.pack('<H', 0)) # Frame top
+        f.write(struct.pack('<H', self.width)) # Frame right
+        f.write(struct.pack('<H', self.height)) # Frame bottom
+        
+        # strf
+        f.write(b'strf')
+        f.write(struct.pack('<I', 40)) # Size of BITMAPINFOHEADER
+        f.write(struct.pack('<I', 40)) # Size
+        f.write(struct.pack('<i', self.width))
+        f.write(struct.pack('<i', self.height))
+        f.write(struct.pack('<H', 1)) # Planes
+        f.write(struct.pack('<H', 24)) # Bitcount
+        f.write(b'MJPG') # Compression
+        f.write(struct.pack('<I', self.width * self.height * 3)) # Size Image
+        f.write(struct.pack('<i', 0)) # XPelsPerMeter
+        f.write(struct.pack('<i', 0)) # YPelsPerMeter
+        f.write(struct.pack('<I', 0)) # ClrUsed
+        f.write(struct.pack('<I', 0)) # ClrImportant
+        
+        # Update strl size
+        strl_size = f.tell() - strl_start - 8
+        current_pos = f.tell()
+        f.seek(saved_strl_pos)
+        f.write(struct.pack('<I', strl_size))
+        f.seek(current_pos)
+        
+        # Update hdrl size
+        hdrl_size = f.tell() - hdrl_start - 8
+        current_pos = f.tell()
+        f.seek(saved_hdrl_pos)
+        f.write(struct.pack('<I', hdrl_size))
+        f.seek(current_pos)
+
+    def _write_idx1(self, f):
+        f.write(b'idx1')
+        size = len(self.idx) * 16
+        f.write(struct.pack('<I', size))
+        for chunk_id, flags, offset, chunk_size in self.idx:
+            f.write(struct.pack('<I', chunk_id)) # 00dc
+            f.write(struct.pack('<I', flags))
+            f.write(struct.pack('<I', offset))
+            f.write(struct.pack('<I', chunk_size))
 
 if __name__ == '__main__':
     main()
