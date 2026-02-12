@@ -384,6 +384,18 @@ class CinepakDecoder:
             sh = (data[offset+8] << 8) | data[offset+9]
             sw = (data[offset+10] << 8) | data[offset+11]
             
+            sy = (data[offset+4] << 8) | data[offset+5]
+            sx = (data[offset+6] << 8) | data[offset+7]
+            sh = (data[offset+8] << 8) | data[offset+9]
+            sw = (data[offset+10] << 8) | data[offset+11]
+            
+            sy = (data[offset+4] << 8) | data[offset+5]
+            sx = (data[offset+6] << 8) | data[offset+7]
+            sh = (data[offset+8] << 8) | data[offset+9]
+            sw = (data[offset+10] << 8) | data[offset+11]
+            
+            # print(f"DEBUG: Strip {i} ID={strip_id:04x} Size={strip_size} Offset={offset} SX={sx} SY={sy} SW={sw} SH={sh}")
+            
             strip_data = data[offset+12 : offset+strip_size]
             self._decode_strip(strip_data, sx, sy, sw, sh)
             
@@ -433,6 +445,10 @@ class CinepakDecoder:
         self._update_codebook(data, partial, self.v1_codebook)
 
     def _update_codebook(self, data, partial, codebook):
+        # print(f"DEBUG: Updating codebook partial={partial} len={len(data)}")
+        if len(data) == 0:
+            return
+            
         offset = 0
         if partial:
             # layout: [mask 32bit] [entries...]
@@ -464,7 +480,10 @@ class CinepakDecoder:
     def _parse_entry(self, codebook, idx, entry):
         # Entry: Y0 Y1 Y2 Y3 U V
         y0, y1, y2, y3 = entry[0], entry[1], entry[2], entry[3]
-        u, v = struct.unpack('bb', entry[4:6]) # Signed
+        # Swapped U and V to fix color issues (Blue faces)
+        v, u = struct.unpack('bb', entry[4:6]) # Signed
+
+        # Store as YUV floats/int
         
         # Store as YUV floats/int
         # Codebook shape: (256, 16, 3) for V4?
@@ -504,9 +523,12 @@ class CinepakDecoder:
         mask = 0
         mask_bits = 0
         
+        # Helper to safely get bit
         def get_bit():
             nonlocal mask, mask_bits, offset
             if mask_bits == 0:
+                if offset + 4 > len(data):
+                    return 0 # OOB
                 mask = (data[offset] << 24) | (data[offset+1] << 16) | (data[offset+2] << 8) | data[offset+3]
                 offset += 4
                 mask_bits = 32
@@ -532,6 +554,7 @@ class CinepakDecoder:
                 if coded:
                     mode = get_bit()
                     if mode == 0: # V1 (1 byte)
+                        if offset >= len(data): break
                         idx = data[offset]
                         offset += 1
                         
@@ -540,13 +563,6 @@ class CinepakDecoder:
                         
                         # Entry: P0(TL), P1(TR), P2(BL), P3(BR)
                         # Upscale:
-                        # P0 P0 P1 P1
-                        # P0 P0 P1 P1
-                        # P2 P2 P3 P3
-                        # P2 P2 P3 P3
-                        
-                        # Fill 4x4 area in yuv_image
-                        # Create 4x4 patch
                         patch = np.empty((4, 4, 3), dtype=np.float32)
                         
                         # TL
@@ -565,31 +581,23 @@ class CinepakDecoder:
                         self.yuv_image[y:h_end, x:w_end] = patch[0:h_end-y, 0:w_end-x]
 
                     else: # V4 (4 bytes)
+                        if offset + 4 > len(data): break
                         i0, i1, i2, i3 = data[offset], data[offset+1], data[offset+2], data[offset+3]
                         offset += 4
                         
                         # Apply 4 V4 entries
                         # i0: TL (2x2), i1: TR, i2: BL, i3: BR
                         
-                        # TL
-                        entry = self.v4_codebook[i0]
-                        # Reshape (4,3) to (2,2,3)
-                        patch0 = entry.reshape(2, 2, 3)
-                        
-                        entry = self.v4_codebook[i1]
-                        patch1 = entry.reshape(2, 2, 3)
-                        
-                        entry = self.v4_codebook[i2]
-                        patch2 = entry.reshape(2, 2, 3)
-                        
-                        entry = self.v4_codebook[i3]
-                        patch3 = entry.reshape(2, 2, 3)
-                        
                         patch = np.zeros((4, 4, 3), dtype=np.float32)
-                        patch[0:2, 0:2] = patch0
-                        patch[0:2, 2:4] = patch1
-                        patch[2:4, 0:2] = patch2
-                        patch[2:4, 2:4] = patch3
+                        
+                        # TL
+                        patch[0:2, 0:2] = self.v4_codebook[i0].reshape(2, 2, 3)
+                        # TR
+                        patch[0:2, 2:4] = self.v4_codebook[i1].reshape(2, 2, 3)
+                        # BL
+                        patch[2:4, 0:2] = self.v4_codebook[i2].reshape(2, 2, 3)
+                        # BR
+                        patch[2:4, 2:4] = self.v4_codebook[i3].reshape(2, 2, 3)
                         
                         h_end = min(y+4, self.height)
                         w_end = min(x+4, self.width)
