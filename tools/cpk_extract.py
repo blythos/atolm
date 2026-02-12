@@ -4,6 +4,12 @@ import argparse
 import sys
 import numpy as np
 from PIL import Image
+import io
+try:
+    from tools.adpcm import DviAdpcmDecoder
+except ImportError:
+    from adpcm import DviAdpcmDecoder
+
 
 # ISO9660 Constants
 SECTOR_SIZE = 2352
@@ -265,6 +271,32 @@ class SegaFilmParser:
         self.header['width'] = struct.unpack('>I', self.data[curr+8:curr+12])[0]
         self.header['unknown'] = struct.unpack('>I', self.data[curr+12:curr+16])[0]
         
+        # Audio Format (FDSC offset 12 in payload? or offset 28 in chunk?)
+        # From logs: 18 01 10 00 at offset 12 in payload.
+        # Payload starts at curr.
+        # 0-3: Codec
+        # 4-7: Height
+        # 8-11: Width
+        # 12: Unknown? Wait.
+        # Log: 63766964 (0-3) | 000000b0 (4-7) | 00000140 (8-11) | 18011000 (12-15)
+        # My unpack above:
+        # height = 000000b0 (176) -> Correct
+        # width = 00000140 (320) -> Correct
+        # unknown = 18011000? No.
+        # Log said: 63766964 000000b0 00000140 18011000
+        # self.data[curr+12:curr+16] IS 18011000.
+        
+        # So 'unknown' IS the Audio Format field?
+        # Let's parse it properly.
+        af_bytes = self.data[curr+12:curr+16]
+        self.header['audio_encoding'] = af_bytes[0] # 18
+        self.header['channels'] = af_bytes[1]      # 01
+        self.header['bit_depth'] = af_bytes[2]     # 10
+        self.header['unknown_af'] = af_bytes[3]    # 00
+        
+        # Dump full FDSC for analysis
+        print(f"DEBUG: FDSC Raw: {self.data[curr:curr+32].hex()}")
+        
         # It seems width and height are there.
         # print(f"FDSC: {self.header}")
 
@@ -302,28 +334,81 @@ class SegaFilmParser:
             e3 = struct.unpack('>I', self.data[curr+8:curr+12])[0] 
             e4 = struct.unpack('>I', self.data[curr+12:curr+16])[0]
             
+            if len(self.frames) < 20:
+                print(f"DEBUG STAB: Frame {len(self.frames)}: e1={e1:08x}, e2={e2:08x}, e3={e3:08x}, e4={e4:08x}")
+
             self.frames.append({'e1': e1, 'e2': e2, 'e3': e3, 'e4': e4})
             curr += 16
             
-                
         print(f"Parsed {len(self.frames)} frames.")
     def extract_audio(self):
-        # Concatenate all audio frames
-        audio_data = bytearray()
+        # Extract audio chunks, processing each
+        # Returns list of bytearrays (LE 16-bit PCM)
+        audio_chunks = []
         base = getattr(self, 'base_offset', 0)
+        
+        # Check Format
+        is_adpcm = (self.header.get('audio_encoding') == 0x18)
+        decoder = None
+        if is_adpcm:
+            print("Detected ADPCM Audio (Type 0x18). Using DviAdpcmDecoder.")
+            decoder = DviAdpcmDecoder()
+        else:
+            print(f"Assuming PCM Audio (Encoding {self.header.get('audio_encoding', 'Unknown')})")
+
         for f in self.frames:
-            # Video frames appear to have 0x80000000 bit set in e1, and are not -1
-            is_video = (f['e1'] & 0x80000000) and (f['e1'] != 0xFFFFFFFF)
+            # Audio Chunk Indentification
+            # Standard FILM: Info field (e1) is 0xFFFFFFFF
+            is_audio = (f['e1'] == 0xFFFFFFFF)
             
-            if not is_video:
+            if is_audio and f['e4'] > 0:
                 off = f['e3'] + base
                 sz = f['e4']
+                
                 if off + sz <= len(self.data):
-                     chunk = self.data[off:off+sz]
-                     audio_data.extend(chunk)
+                    chunk = self.data[off:off+sz]
+                    
+                    # 1. Header Stripping
+                    # Analysis showed 16-byte header in audio chunks.
+                    # 0-3: Size
+                    # 4-7: W/H
+                    # 8-11: 0001 0000 (Channels?)
+                    # 12: Step Index?
+                    # 13: ?
+                    # 14-15: Size-4?
+                    
+                    if len(chunk) > 16:
+                        step_index = chunk[12]
+                        # Predictor? offset 10-11 is 0000.
+                        # predictor = struct.unpack('>h', chunk[10:12])[0]
+                        
+                        chunk = chunk[16:]
+                    
+                    if is_adpcm:
+                        # Decode ADPCM -> List of Samples
+                        # Pass initial state if decoder supports it
+                        samples = decoder.decode(chunk, initial_index=step_index)
+                        # Pack to LE 16-bit PCM
+                        chunk_pcm = struct.pack(f'<{len(samples)}h', *samples)
+                        audio_chunks.append(chunk_pcm)
+                    else:
+                        # Normalize PCM (BE -> LE)
+                        # Assume Signed 16-bit BE
+                        if len(chunk) % 2 != 0: chunk = chunk[:-1]
+                        a_swap = bytearray(len(chunk))
+                        a_swap[0::2] = chunk[1::2] # LE Low = BE High? No.
+                        # BE: [H L]
+                        # LE: [L H]
+                        # a_swap[0] (L) = chunk[1] (L)
+                        # a_swap[1] (H) = chunk[0] (H)
+                        a_swap[0::2] = chunk[1::2]
+                        a_swap[1::2] = chunk[0::2]
+                        audio_chunks.append(a_swap)
+
                 else:
                      print(f"Warning: Audio frame at {off} truncated")
-        return audio_data
+        
+        return audio_chunks
 
     def extract_video_frames(self):
          # Generator yielding video frames
@@ -335,6 +420,10 @@ class SegaFilmParser:
                 sz = f['e4']
                 if off + sz <= len(self.data):
                      yield self.data[off:off+sz]
+
+
+                        # Save Video Frames
+
 
 class CinepakDecoder:
     def __init__(self, width, height):
@@ -372,23 +461,13 @@ class CinepakDecoder:
             strip_id = (data[offset] << 8) | data[offset+1]
             strip_size = (data[offset+2] << 8) | data[offset+3]
             
-            print(f"DEBUG: Strip {i} ID={strip_id:04x} Size={strip_size} Offset={offset}")
+            # print(f"DEBUG: Strip {i} ID={strip_id:04x} Size={strip_size} Offset={offset}")
 
             # sanity check
             if strip_id not in [0x1000, 0x1100]:
                 offset += 2 # Try to skip?
                 continue
                 
-            sy = (data[offset+4] << 8) | data[offset+5]
-            sx = (data[offset+6] << 8) | data[offset+7]
-            sh = (data[offset+8] << 8) | data[offset+9]
-            sw = (data[offset+10] << 8) | data[offset+11]
-            
-            sy = (data[offset+4] << 8) | data[offset+5]
-            sx = (data[offset+6] << 8) | data[offset+7]
-            sh = (data[offset+8] << 8) | data[offset+9]
-            sw = (data[offset+10] << 8) | data[offset+11]
-            
             sy = (data[offset+4] << 8) | data[offset+5]
             sx = (data[offset+6] << 8) | data[offset+7]
             sh = (data[offset+8] << 8) | data[offset+9]
@@ -609,6 +688,7 @@ def main():
     parser.add_argument('--disc', help="Path to filesystem driver (ISO/BIN)")
     parser.add_argument('--list', action='store_true', help="List all files")
     parser.add_argument('--extract', help="Extract a specific CPK file (by path on disc) to output dir")
+    parser.add_argument('--cpk', help="Extract audio/video from a local CPK file") # Added --cpk argument
     parser.add_argument('--output', help="Output directory", default="output")
     
     args = parser.parse_args()
@@ -674,35 +754,26 @@ def main():
                         print(f"Parsed FILM: {film.header}")
                         
                         # Save Audio
-                        audio_raw = film.extract_audio()
-                        # Convert BE to LE for WAV
-                        # 16-bit BE -> LE
-                        # Using array module or numpy is faster, but simple swap loop for now?
-                        # Audio is large. Loop is slow.
-                        # Use struct? or array?
-                        if len(audio_raw) > 0:
-                            import array
-                            # Assuming 16-bit signed
-                            if len(audio_raw) % 2 != 0:
-                                audio_raw = audio_raw[:-1] # drop last byte
-                            
-                            # Read as short (BE)
-                            # Create array from bytes? array 'h' is native.
-                            # We have BE data.
-                            # Just swap bytes: [0,1] -> [1,0]
-                            # audio_raw[0::2], audio_raw[1::2] = audio_raw[1::2], audio_raw[0::2]
-                            # Slice assignment works.
-                            audio_raw[0::2], audio_raw[1::2] = audio_raw[1::2], audio_raw[0::2]
-                            
-                            wav_path = os.path.join(args.output, os.path.basename(target_path) + ".wav")
+                        audio_chunks = film.extract_audio()
+                        
+                        if len(audio_chunks) > 0:
                             import wave
-                            with wave.open(wav_path, 'wb') as wav:
-                                wav.setnchannels(1) # Mono? '01' in header
-                                wav.setsampwidth(2) # 16-bit
-                                wav.setframerate(32000) # From STAB 'Val4' or header
-                                # We saw 32000 in STAB header.
-                                wav.writeframes(audio_raw)
-                            print(f"Saved audio to {wav_path}")
+                            
+                            # Concatenate normalized chunks
+                            audio_data = b''.join(audio_chunks)
+                            
+                            channels = film.header.get('channels', 1)
+                            rate = 32000 # Default PDS
+                            
+                            filename = f"{os.path.basename(target_path)}_audio.wav"
+                            path = os.path.join(args.output, filename)
+                            
+                            with wave.open(path, 'wb') as w:
+                                w.setnchannels(channels) # 1 or 2
+                                w.setsampwidth(2) # 16-bit
+                                w.setframerate(rate)
+                                w.writeframes(audio_data)
+                            print(f"Saved Audio: {path}")
                         
                         # Save Video Frames
                         print("Initializing Cinepak Decoder...")
@@ -710,7 +781,6 @@ def main():
                         
                         v_idx = 0
                         for v_data in film.extract_video_frames():
-                            # Decode
                             try:
                                 img = decoder.decode_frame(v_data)
                                 if img:
@@ -718,16 +788,9 @@ def main():
                                     img.save(png_path)
                             except Exception as e:
                                 print(f"Error decoding frame {v_idx}: {e}")
-                            
-                            # Also save raw? Maybe not if PNG works.
-                            # v_path = os.path.join(args.output, f"frame_{v_idx:04d}.bin")
-                            # with open(v_path, 'wb') as vf:
-                            #    vf.write(v_data)
-                            
                             v_idx += 1
                             if v_idx % 100 == 0:
                                 print(f"Saved {v_idx} frames...")
-                                
                         print(f"Saved {v_idx} video frames.")
                             
                     except Exception as e:
@@ -750,7 +813,9 @@ def main():
             print(f"Error reading {args.disc}: {e}")
             import traceback
             traceback.print_exc()
-
+            
+    if args.cpk:
+        print("Standalone CPK extraction not yet implemented fully. Use --disc.")
 
 if __name__ == '__main__':
     main()
