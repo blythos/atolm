@@ -1,0 +1,42 @@
+# Game data (never commit)
+*.bin
+*.iso
+*.cue
+*.img
+*.mdf
+*.mds
+*.ccd
+*.sub
+
+# Extracted assets (generated from disc image)
+extracted/
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# C++ build
+build/
+cmake-build-*/
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
