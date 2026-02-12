@@ -387,23 +387,13 @@ class SegaFilmParser:
                     if is_adpcm:
                         # Decode ADPCM -> List of Samples
                         # Pass initial state if decoder supports it
-                        # For Yamaha, step_index might be initial step?
-                        # Or maybe it's just garbage and we should rely on internal state?
-                        # Let's try passing it.
-                        # Yamaha uses 'step' (127..24576). If value is small (0x10=16), it might be index?
-                        # If index, we need table.
-                        # Standard Yamaha doesn't use index for state, it stores Step directly?
-                        # But 16 is too small for Step (min 127).
-                        # Maybe it IS DVI Index, but Algorithm is Yamaha?
-                        # Or maybe correct algorithm IS DVI, but my DVI implementation was slightly off?
-                        # User said "AzelLib/audio". Saturn usually Yamaha.
-                        # Let's try Yamaha with default state, ignoring header byte for now?
-                        # Or map 16 -> Step?
-                        # Let's try default first.
-                        samples = decoder.decode(chunk)
+                        # AICA/Saturn uses Low-High nibble order.
+                        # Do not pass initial state (None) to preserve stream continuity.
+                        samples = decoder.decode(chunk, nibble_order='lo_hi')
                         # Pack to LE 16-bit PCM
                         chunk_pcm = struct.pack(f'<{len(samples)}h', *samples)
                         audio_chunks.append(chunk_pcm)
+
                     else:
                         # Normalize PCM (BE -> LE)
                         # Assume Signed 16-bit BE
@@ -828,7 +818,63 @@ def main():
             traceback.print_exc()
             
     if args.cpk:
-        print("Standalone CPK extraction not yet implemented fully. Use --disc.")
+        cpk_path = args.cpk
+        if not os.path.exists(cpk_path):
+            print(f"File not found: {cpk_path}")
+            return
+
+        print(f"Processing local CPK: {cpk_path}")
+        with open(cpk_path, 'rb') as f:
+            file_data = f.read()
+
+        try:
+            film = SegaFilmParser(file_data)
+            print(f"Parsed FILM: {film.header}")
+            
+            # Save Audio
+            audio_chunks = film.extract_audio()
+            
+            if len(audio_chunks) > 0:
+                import wave
+                
+                # Concatenate normalized chunks
+                audio_data = b''.join(audio_chunks)
+                
+                channels = film.header.get('channels', 1)
+                rate = 32000 # Default PDS
+                
+                filename = f"{os.path.basename(cpk_path)}_audio.wav"
+                path = os.path.join(args.output, filename)
+                
+                with wave.open(path, 'wb') as w:
+                    w.setnchannels(channels) # 1 or 2
+                    w.setsampwidth(2) # 16-bit
+                    w.setframerate(rate)
+                    w.writeframes(audio_data)
+                print(f"Saved Audio: {path}")
+            
+            # Save Video Frames
+            print("Initializing Cinepak Decoder...")
+            decoder = CinepakDecoder(film.header['width'], film.header['height'])
+            
+            v_idx = 0
+            for v_data in film.extract_video_frames():
+                try:
+                    img = decoder.decode_frame(v_data)
+                    if img:
+                        png_path = os.path.join(args.output, f"frame_{v_idx:04d}.png")
+                        img.save(png_path)
+                except Exception as e:
+                    print(f"Error decoding frame {v_idx}: {e}")
+                v_idx += 1
+                if v_idx % 100 == 0:
+                    print(f"Saved {v_idx} frames...")
+            print(f"Saved {v_idx} video frames.")
+                
+        except Exception as e:
+            print(f"Failed to parse FILM: {e}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == '__main__':
     main()

@@ -2,19 +2,30 @@
 class YamahaAdpcmDecoder:
     """
     Decoder for Yamaha ADPCM (used in Sega Saturn / SCSP).
+    Based on aosdk/eng_dsf/aica.c reference implementation.
     4-bit samples.
     """
     
+    # aica.c: TableQuant (Fixed point 8.0 -> values * 256)
+    RATE_TABLE = [
+        230, 230, 230, 230, 307, 409, 512, 614
+    ]
+    
+    # aica.c: quant_mul
+    QUANT_MUL = [
+        1, 3, 5, 7, 9, 11, 13, 15,
+        -1, -3, -5, -7, -9, -11, -13, -15
+    ]
+    
     def __init__(self):
         self.signal = 0
-        self.step = 127 # Default initial step? Or 0?
-        # AzelLib audio.cpp likely initializes this.
-        # Common initial step is 127 or 0x7F.
+        self.step = 127 # cur_quant in aica.c
         
-    def decode(self, data, initial_signal=0, initial_step=127):
-        # Yamaha ADPCM Logic
-        # (Based on standard algorithms found in MAME/VGMStream for YM2610/SCSP)
-        
+    def decode(self, data, initial_signal=None, initial_step=None, nibble_order='lo_hi'):
+        """
+        Decodes ADPCM data.
+        nibble_order: 'hi_lo' (Standard) or 'lo_hi' (Saturn/AICA standard).
+        """
         if initial_signal is not None:
              self.signal = initial_signal
         if initial_step is not None:
@@ -23,12 +34,12 @@ class YamahaAdpcmDecoder:
         samples = []
         
         for byte in data:
-            # 4-bit samples. Order: High nibble, then Low nibble? 
-            # Or Low then High?
-            # Standard is usually High then Low.
-            
-            n1 = (byte >> 4) & 0x0F
-            n2 = byte & 0x0F
+            if nibble_order == 'lo_hi':
+                n1 = byte & 0x0F       # Low nibble first
+                n2 = (byte >> 4) & 0x0F # High nibble second
+            else:
+                n1 = (byte >> 4) & 0x0F
+                n2 = byte & 0x0F
             
             self._decode_nibble(n1, samples)
             self._decode_nibble(n2, samples)
@@ -36,42 +47,31 @@ class YamahaAdpcmDecoder:
         return samples
 
     def _decode_nibble(self, nibble, samples):
-        # Yamaha Algorithm
-        # 1. Update Signal
-        # step * delta / 8
-        # delta = (nibble & 7) * 2 + 1
-        # if (nibble & 8) signal -= ... else signal += ...
+        # Match aica.c DecodeADPCM
+        # int x = adpcm->cur_quant * quant_mul [Delta & 15];
+        x = self.step * self.QUANT_MUL[nibble & 15]
         
-        step = self.step
-        delta = (nibble & 7) * 2 + 1
-        calc = (step * delta) >> 3
-        
-        if nibble & 8:
-            self.signal -= calc
-        else:
-            self.signal += calc
+        # x = adpcm->cur_sample + ((int)(x + ((UINT32)x >> 29)) >> 3);
+        # Python handles shifts differently for negative numbers.
+        # Javascript/C style logical right shift for the term inside:
+        def urshift(val, n): 
+            return (val % 0x100000000) >> n
             
-        # Clamp Signal (16-bit signed)
-        self.signal = max(-32768, min(32767, self.signal))
+        term2 = urshift(x, 29)
+        delta_signal = (x + term2) >> 3
+        
+        new_signal = self.signal + delta_signal
+        
+        # adpcm->cur_sample=ICLIP16(x);
+        self.signal = max(-32768, min(32767, new_signal))
         
         samples.append(self.signal)
         
-        # 2. Update Step
-        # step = (step * Rate[nibble]) >> 8
-        # Rate table (standard):
-        # 57, 57, 57, 57, 77, 102, 128, 153 (for 0-7)
-        # Same for 8-15 (ignore sign bit 8)
+        # adpcm->cur_quant=(adpcm->cur_quant*TableQuant[Delta&7])>>ADPCMSHIFT;
+        # ADPCMSHIFT is 8
+        self.step = (self.step * self.RATE_TABLE[nibble & 7]) >> 8
         
-        rate_table = [57, 57, 57, 57, 77, 102, 128, 153]
-        rate = rate_table[nibble & 7]
-        
-        self.step = (self.step * rate) >> 6 # Shift 6? Or 8?
-        # Some impls say >> 6, some >> 8.
-        # MAME ymz280b.cpp uses:
-        # step = (step * rate_table[n&7]) >> 6
         # Clamp step
+        # (adpcm->cur_quant<0x7f)?0x7f:((adpcm->cur_quant>0x6000)?0x6000:adpcm->cur_quant);
         if self.step < 127: self.step = 127
         elif self.step > 24576: self.step = 24576
-        
-        # Note: AzelLib might use different table or shift.
-        # But this is the standard Yamaha algo.
