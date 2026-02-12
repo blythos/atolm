@@ -1,4 +1,5 @@
 # Game data (never commit)
+ISOs/
 *.bin
 *.iso
 *.cue
