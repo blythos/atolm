@@ -6,9 +6,9 @@ import numpy as np
 from PIL import Image
 import io
 try:
-    from tools.adpcm import DviAdpcmDecoder
+    from tools.yamaha_adpcm import YamahaAdpcmDecoder
 except ImportError:
-    from adpcm import DviAdpcmDecoder
+    from yamaha_adpcm import YamahaAdpcmDecoder
 
 
 # ISO9660 Constants
@@ -351,8 +351,8 @@ class SegaFilmParser:
         is_adpcm = (self.header.get('audio_encoding') == 0x18)
         decoder = None
         if is_adpcm:
-            print("Detected ADPCM Audio (Type 0x18). Using DviAdpcmDecoder.")
-            decoder = DviAdpcmDecoder()
+            print("Detected ADPCM Audio (Type 0x18). Using YamahaAdpcmDecoder (SCSP).")
+            decoder = YamahaAdpcmDecoder()
         else:
             print(f"Assuming PCM Audio (Encoding {self.header.get('audio_encoding', 'Unknown')})")
 
@@ -387,7 +387,20 @@ class SegaFilmParser:
                     if is_adpcm:
                         # Decode ADPCM -> List of Samples
                         # Pass initial state if decoder supports it
-                        samples = decoder.decode(chunk, initial_index=step_index)
+                        # For Yamaha, step_index might be initial step?
+                        # Or maybe it's just garbage and we should rely on internal state?
+                        # Let's try passing it.
+                        # Yamaha uses 'step' (127..24576). If value is small (0x10=16), it might be index?
+                        # If index, we need table.
+                        # Standard Yamaha doesn't use index for state, it stores Step directly?
+                        # But 16 is too small for Step (min 127).
+                        # Maybe it IS DVI Index, but Algorithm is Yamaha?
+                        # Or maybe correct algorithm IS DVI, but my DVI implementation was slightly off?
+                        # User said "AzelLib/audio". Saturn usually Yamaha.
+                        # Let's try Yamaha with default state, ignoring header byte for now?
+                        # Or map 16 -> Step?
+                        # Let's try default first.
+                        samples = decoder.decode(chunk)
                         # Pack to LE 16-bit PCM
                         chunk_pcm = struct.pack(f'<{len(samples)}h', *samples)
                         audio_chunks.append(chunk_pcm)

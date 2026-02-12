@@ -26,10 +26,10 @@ class DviAdpcmDecoder:
         self.predictor = 0
         self.step_index = 0
 
-    def decode(self, data):
+    def decode(self, data, initial_predictor=0, initial_index=0):
         """
         Decodes a bytearray of ADPCM data into a list of 16-bit signed PCM samples.
-    def decode(self, data, initial_predictor=0, initial_index=0):
+        """
         samples = []
         
         # Reset state for chunk-based decoding if provided

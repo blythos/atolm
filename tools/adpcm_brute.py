@@ -116,5 +116,85 @@ def main():
             w.writeframes(out_bytes)
         print(f"Generated {out_name}")
 
+
+class YamahaAdpcmVariant:
+    def __init__(self, name, nibble_order):
+        self.name = name
+        self.nibble_order = nibble_order
+        self.signal = 0
+        self.step = 127
+        
+    def decode(self, data):
+        samples = []
+        # Reset per file?
+        self.signal = 0
+        self.step = 127
+        
+        for byte in data:
+            n1 = 0 
+            n2 = 0
+            if self.nibble_order == 'hi_lo':
+                n1 = (byte >> 4) & 0x0F
+                n2 = byte & 0x0F
+            else:
+                n1 = byte & 0x0F
+                n2 = (byte >> 4) & 0x0F
+                
+            self._decode_nibble(n1, samples)
+            self._decode_nibble(n2, samples)
+        return samples
+
+    def _decode_nibble(self, nibble, samples):
+        step = self.step
+        delta = (nibble & 7) * 2 + 1
+        calc = (step * delta) >> 3
+        
+        if nibble & 8:
+            self.signal -= calc
+        else:
+            self.signal += calc
+            
+        self.signal = max(-32768, min(32767, self.signal))
+        samples.append(self.signal)
+        
+        rate_table = [57, 57, 57, 57, 77, 102, 128, 153]
+        rate = rate_table[nibble & 7]
+        self.step = (self.step * rate) >> 6
+        if self.step < 127: self.step = 127
+        elif self.step > 24576: self.step = 24576
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input_file', help="Input raw adpcm bytes (or extracted wav to skip header)")
+    parser.add_argument('--offset', type=int, default=0, help="Skip N bytes")
+    parser.add_argument('--length', type=int, default=32000, help="Process N bytes")
+    args = parser.parse_args()
+    
+    with open(args.input_file, 'rb') as f:
+        f.seek(args.offset)
+        data = f.read(args.length)
+        
+    print(f"Read {len(data)} bytes from {args.input_file}")
+    
+    variants = [
+        AdpcmVariant("dvi_std", "hi_lo", "be"),
+        AdpcmVariant("dvi_lohi", "lo_hi", "be"),
+        YamahaAdpcmVariant("yamaha_std", "hi_lo"),
+        YamahaAdpcmVariant("yamaha_lohi", "lo_hi")
+    ]
+    
+    for v in variants:
+        samples = v.decode(data)
+        out_name = f"brute_{v.name}.wav"
+        with wave.open(out_name, 'wb') as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(32000)
+            
+            # Pack LE
+            out_bytes = struct.pack(f'<{len(samples)}h', *samples)
+            w.writeframes(out_bytes)
+        print(f"Generated {out_name}")
+
 if __name__ == '__main__':
     main()
