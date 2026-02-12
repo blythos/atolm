@@ -45,6 +45,16 @@ This project builds on **yaz0r's Azel project** (github.com/yaz0r/Azel, MIT lice
 - The disc image is the ROM — the reimplementation loads original disc data at runtime, users provide their own copy
 - When modifying the asset extraction pipeline (MCB/CGB parsing, texture decoding, skeletal transforms), verify changes against known-good output before committing
 
+## Disc Image Location
+
+The disc images are in the `ISOs/` directory (gitignored, never commit). Disc 1 files:
+- `ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 1).bin` — main data track (this is the one containing the ISO9660 filesystem and all game files)
+- `ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 2).bin` — audio track
+- `ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 3).bin` — audio track
+- `ISOs/Panzer Dragoon Saga (USA) (Disc 1).cue` — cue sheet
+
+Always use Track 1 for file extraction. Tracks 2 and 3 are CD-DA (Red Book) audio tracks.
+
 ## What Needs Doing
 
 Check `docs/PROGRESS.md` for the current phase and open tasks. The project follows a strict dependency order — earlier phases must be complete before later ones can begin. The immediate priorities are:
