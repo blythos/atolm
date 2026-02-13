@@ -22,6 +22,11 @@ These have been verified against real game data. Do not deviate from them.
 - Rotation order is **ZYX** (Z applied first, then Y, then X)
 - Texture address: **`CMDSRCA_raw × 8`** = byte offset directly into CGB file (verified across all asset types — no per-file VDP1 offset needed)
 - Palette address: **`CMDCOLR_raw × 8`** = byte offset into CGB for LUT mode
+- Saturn audio is **signed 16-bit big-endian PCM** — must byte-swap to little-endian for WAV output. 8-bit is signed too — convert to unsigned (add 128) for WAV.
+- CPK audio sample rate is **32000 Hz** (the FDSC header sample rate field is unreliable)
+- CPK audio/video chunk discrimination requires a content-aware heuristic (check if first 4 bytes of chunk match chunk size → video; otherwise → audio)
+- CPK stereo audio is non-interleaved per chunk (first half = left, second half = right)
+- The FDSC byte 20 is video bpp (24), NOT audio compression. Audio compression is byte 23 (0 = PCM for PDS).
 - Saturn RGB555 format: **R = bits 0-4, G = bits 5-9, B = bits 10-14, MSB = bit 15**
 - MCB files start with a pointer table of u32 offsets to sub-resources
 - Quad terminator: all four vertex indices are zero

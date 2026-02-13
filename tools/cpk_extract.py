@@ -6,108 +6,8 @@ import numpy as np
 import subprocess
 import shutil
 
-# ISO9660 Constants
-SECTOR_SIZE = 2352
-HEADER_SIZE = 16
-DATA_SIZE = 2048
-PVD_SECTOR = 16
-
-def read_sector(f, sector_num):
-    """Reads sector data handling Mode 1 and Mode 2 Form 1/2."""
-    f.seek(sector_num * SECTOR_SIZE)
-    raw = f.read(SECTOR_SIZE)
-    
-    # Mode is at offset 15
-    mode = raw[15]
-    
-    if mode == 1:
-        # Mode 1: Header 16, Data 2048
-        return raw[16:16+2048]
-    elif mode == 2:
-        # Mode 2
-        # Submode is at offset 18 (16 + 2)
-        submode = raw[18]
-        if submode & 0x20: # Form 2 bit
-            # Form 2: Header 16, Subheader 8, Data 2324
-            # For CPK extraction, we likely only care about Form 1 (Data)
-            # But let's return Form 2 payload just in case? 
-            # Usually Form 2 is for Audio/Video with less error correction.
-            # CPK data is usually Form 1 (2048).
-            # If we return 2324, we break the expected 2048 block size.
-            # Let's hope CPKs are Form 1.
-            return raw[24:24+2324]
-        else:
-            # Form 1: Header 16, Subheader 8, Data 2048
-            return raw[24:24+2048]
-    return raw[16:16+2048] # Fallback
-
-class IsoReader:
-    def __init__(self, bin_path):
-        self.f = open(bin_path, 'rb')
-        self._parse_pvd()
-        
-    def _parse_pvd(self):
-        # Read Primary Volume Descriptor
-        self.pvd = read_sector(self.f, PVD_SECTOR)
-        # Root Directory Record starts at byte 156
-        self.root_record = self.pvd[156:190] 
-        # Parse Root LBA (Location of Extent) - Offset 2 in record, 4 bytes LE, 4 bytes BE
-        self.root_lba = struct.unpack('<I', self.root_record[2:6])[0]
-        self.root_size = struct.unpack('<I', self.root_record[10:14])[0]
-        
-    def list_files(self):
-        """Recursively list files (simple implementation)."""
-        files = []
-        self._scan_dir(self.root_lba, self.root_size, files)
-        return files
-        
-    def _scan_dir(self, lba, size, file_list):
-        num_sectors = (size + DATA_SIZE - 1) // DATA_SIZE
-        data = b''
-        for i in range(num_sectors):
-            data += read_sector(self.f, lba + i)
-            
-        offset = 0
-        while offset < len(data):
-            length = data[offset]
-            if length == 0: 
-                # Padding or end of sector?
-                # Check next byte. If 0, likely padding until sector boundary?
-                # For ISO9660, directory records don't cross sectors usually.
-                # Advance to next sector boundary if needed?
-                # Simplified: skip 1 byte
-                offset += 1
-                # Find next non-zero
-                while offset < len(data) and data[offset] == 0:
-                    offset += 1
-                continue
-                
-            record = data[offset : offset + length]
-            ext_lba = struct.unpack('<I', record[2:6])[0]
-            ext_size = struct.unpack('<I', record[10:14])[0]
-            flags = record[25]
-            name_len = record[32]
-            name = record[33 : 33 + name_len].decode('ascii', errors='ignore').split(';')[0]
-            
-            if name not in ['.', '..', '']:
-                if not (flags & 2): # Not a directory
-                    file_list.append({'name': name, 'lba': ext_lba, 'size': ext_size})
-                else:
-                    # Recursive scan? (Optional for this task)
-                    # For now assume flattened or root-only for CPKs
-                    pass
-            
-            offset += length
-
-    def extract_file(self, lba, size):
-        num_sectors = (size + DATA_SIZE - 1) // DATA_SIZE
-        data = b''
-        for i in range(num_sectors):
-            data += read_sector(self.f, lba + i)
-        return data[:size]
-        
-    def close(self):
-        self.f.close()
+from common.iso9660 import ISO9660Reader
+from common.saturn import read_u32_be
 
 class SegaFilmParser:
     def __init__(self, data):
@@ -115,21 +15,18 @@ class SegaFilmParser:
         self.offset = 0
         self._parse()
         
-    def _read_u32_be(self, offset):
-        return struct.unpack('>I', self.data[offset:offset+4])[0]
-        
     def _parse(self):
         if self.data[0:4] != b'FILM':
             raise ValueError("Not a FILM file")
             
-        file_len = self._read_u32_be(4)
+        file_len = read_u32_be(self.data, 4)
         print(f"File Length: {file_len}")
         
         self.offset = 16 # Skip 'FILM' + Size + Version + Reserved?
         
         while self.offset < len(self.data):
             chunk_sig = self.data[self.offset:self.offset+4].decode('ascii', errors='ignore')
-            chunk_size = self._read_u32_be(self.offset+4)
+            chunk_size = read_u32_be(self.data, self.offset+4)
             
             print(f"Chunk: {chunk_sig}, Size: {chunk_size}")
             
@@ -161,15 +58,6 @@ class SegaFilmParser:
         bit_depth = self.data[offset+6]
         channels = self.data[offset+7]
         
-        # Audio Frequency 
-        # In the files examined, this looks like garbage or repurposed fields
-        # But let's read it anyway
-        try:
-             # This interpretation assumes standard header layout
-             pass
-        except:
-             pass
-
         print(f"  FDSC Info: {width}x{height} {codec}, Audio: {channels}ch {bit_depth}bit")
         
         self.header = {
@@ -185,7 +73,7 @@ class SegaFilmParser:
         # 0x00: Framerate (float? or fixed?)
         # 0x04: Image Count / Frame Count
         
-        frame_count = self._read_u32_be(offset+4)
+        frame_count = read_u32_be(self.data, offset+4)
         print(f"  STAB Info: {frame_count} frames")
         
         # Chunk Table Entries (16 bytes each)
@@ -198,17 +86,13 @@ class SegaFilmParser:
             if table_offset + 16 > offset + length: break
             
             # Layout: 0-3=Info1/Flags, 4-7=Info2, 8-11=Offset, 12-15=Size
-            info1 = self._read_u32_be(table_offset)
-            info2 = self._read_u32_be(table_offset+4)
-            off = self._read_u32_be(table_offset+8)
-            size = self._read_u32_be(table_offset+12)
+            info1 = read_u32_be(self.data, table_offset)
+            info2 = read_u32_be(self.data, table_offset+4)
+            off = read_u32_be(self.data, table_offset+8)
+            size = read_u32_be(self.data, table_offset+12)
             
             # Mask potential high-bit flags in offset
-            # raw_off = off
             off = off & 0x7FFFFFFF
-            # if raw_off > 0x7FFFFFFF:
-            #      # print(f"DEBUG: Masked offset {raw_off:08x} -> {off:08x}")
-            #      pass
 
             # Skip chunks with invalid offsets (e.g. FFFFFFFF masked to 7FFFFFFF)
             if off == 0x7FFFFFFF:
@@ -225,6 +109,7 @@ class SegaFilmParser:
             
         print(f"  STAB Entries found: {len(self.stab_entries)}")
         print(f"  Potential Audio Chunks: {audio_chunk_count}")
+
 
     def extract_audio(self):
         """Extract audio to WAV-ready PCM data."""
@@ -402,7 +287,7 @@ def main():
         for iso_path in iso_files:
             print(f"\nProcessing Disc Image: {os.path.basename(iso_path)}")
             try:
-                iso = IsoReader(iso_path)
+                iso = ISO9660Reader(iso_path)
                 files = iso.list_files()
                 cpk_entries = [f for f in files if f['name'].upper().endswith('.CPK')]
                 print(f"  Found {len(cpk_entries)} CPK files.")
@@ -429,7 +314,7 @@ def main():
             sys.exit(1)
             
         print(f"Opening disc image: {args.disc}")
-        iso = IsoReader(args.disc)
+        iso = ISO9660Reader(args.disc)
         files = iso.list_files()
         cpk_entries = [f for f in files if f['name'].upper().endswith('.CPK')]
         print(f"Found {len(cpk_entries)} CPK files on disc.")
