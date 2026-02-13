@@ -170,3 +170,18 @@ def read_sector(f, sector_num):
 ```
 
 Primary Volume Descriptor at sector 16. Root directory entry at PVD offset 156.
+
+## PCM Audio Sample Format
+
+Standalone `.PCM` files on the disc (outside of CPK containers) are typically raw audio data with no header.
+
+**Format:**
+- **16-bit**: Big-Endian Signed Integer (`>i2`). This is different from WAV (Little-Endian).
+- **8-bit**: Signed Integer (`int8`). This is different from WAV (Unsigned `uint8`).
+- **Sample Rate**: Often 22050 Hz (common for SFX), but can vary (11025, 16000, 32000).
+- **Channels**: Typically Mono.
+
+**Conversion to WAV:**
+1. **16-bit**: Byte-swap to Little-Endian.
+2. **8-bit**: Convert Signed to Unsigned (`u8 = s8 + 128`).
+
