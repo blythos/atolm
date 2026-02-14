@@ -27,3 +27,47 @@ Individual CPK file:
 ```bash
 python tools/cpk_extract.py --cpk path/to/movie.cpk
 ```
+
+### Batch FMV Processor
+
+Automated tool to extract, subtitle, and mux FMVs from game discs.
+
+**Usage:**
+
+Process a single disc (CUE or BIN):
+```bash
+# Using a CUE file (recommended for multi-bin games)
+python tools/batch_process_FMVs.py "path/to/game.cue"
+
+# Using a BIN file directly
+python tools/batch_process_FMVs.py "path/to/track1.bin"
+```
+
+Batch process a folder of disc images:
+```bash
+# Scans for .cue files (or .bin files if no cues found)
+python tools/batch_process_FMVs.py "path/to/isos_folder/"
+```
+
+**Output:**
+Files are organized into `Disc_X` subdirectories (e.g. `Disc_1/`, `Disc_2/`) automatically.
+You can specify a custom output directory:
+```bash
+python tools/batch_process_FMVs.py "path/to/isos/" --output "my_output_folder/"
+```
+
+## Debug Tools
+
+Located in `tools/debug/`. Run these from the project root.
+
+-   `inspect_iso.py`: Lists all files on a disc image, including hidden/nested files.
+    ```bash
+    python tools/debug/inspect_iso.py
+    ```
+-   `audit_fmv_durations.py`: Checks for subtitle/video duration mismatches in the output folder.
+    ```bash
+    python tools/debug/audit_fmv_durations.py
+    ```
+-   `compare_discs.py`: Compares MOVIE.DAT and MOVIE.PRG checksums across all discs.
+-   `inspect_movie_dat.py`: Dumps the raw contents of MOVIE.DAT from a disc.
+-   `inspect_movie_prg.py`: Dumps the raw contents of MOVIE.PRG from a disc.

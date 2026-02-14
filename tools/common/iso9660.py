@@ -53,7 +53,7 @@ class ISO9660Reader:
         self._scan_dir(self.root_lba, self.root_size, files)
         return files
         
-    def _scan_dir(self, lba, size, file_list):
+    def _scan_dir(self, lba, size, file_list, path_prefix=""):
         num_sectors = (size + DATA_SIZE - 1) // DATA_SIZE
         data = b''
         for i in range(num_sectors):
@@ -80,21 +80,23 @@ class ISO9660Reader:
             name_len = record[32]
             name = record[33 : 33 + name_len].decode('ascii', errors='ignore').split(';')[0]
             
-            if name not in ['.', '..', '']:
+            if name not in ['.', '..', '', '\x00', '\x01']: 
+                # Note: \x00 and \x01 are current/parent dir in some ISOs
+                full_name = os.path.join(path_prefix, name).replace('\\', '/') if path_prefix else name
+                
                 if not (flags & 2): # Not a directory
-                    file_list.append({'name': name, 'lba': ext_lba, 'size': ext_size})
+                    file_list.append({'name': full_name, 'lba': ext_lba, 'size': ext_size})
                 else:
-                    # Recursive scan skipping for now as per original code
-                    pass
+                    self._scan_dir(ext_lba, ext_size, file_list, full_name)
             
             offset += length
 
     def extract_file(self, lba, size):
         num_sectors = (size + DATA_SIZE - 1) // DATA_SIZE
-        data = b''
+        chunks = []
         for i in range(num_sectors):
-            data += read_sector(self.f, lba + i)
-        return data[:size]
+            chunks.append(read_sector(self.f, lba + i))
+        return b''.join(chunks)[:size]
         
     def close(self):
         self.f.close()

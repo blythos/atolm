@@ -670,7 +670,7 @@ def extract_from_movie_dat(dat_data, cpk_names):
 
     MOVIE.DAT has a flat table of 8-byte entries:
         u16 start_frame, u16 end_frame, u32 string_pointer
-    Groups are delimited by 0xFFFF sentinels and map 1:1 to CPKs.
+    Groups are delimited by 0xFFFF sentinels.
 
     Returns dict: {cpk_name: [subtitle_entries]}.
     """
@@ -711,17 +711,40 @@ def extract_from_movie_dat(dat_data, cpk_names):
 
     print(f"  MOVIE.DAT: {len(groups)} subtitle group(s)")
 
-    # Map groups to CPK names in order (1:1)
+    # Logic Update:
+    # Detailed investigation shows a perfect 1:1 mapping between the first 
+    # N CPKs in the playlist and the N groups in MOVIE.DAT.
+    # The last few CPKs (EVT161_1, EVT161_2, MOVIE1) have no subtitles in DAT.
+    
+    # Logic Update:
+    # 50 CPKs in list. 47 Groups in DAT.
+    # Detailed duration audit identified exactly 3 CPKs that have no subtitles
+    # and cause the mapping to shift if not skipped.
+    SKIPPED_CPKS = {
+        'EVT016_1.CPK', # Video ~98s, Group 9 is 157s (belongs to EVT016_2)
+        'EVT155_5.CPK', # Video ~41s, Group 43 is 91s (belongs to EVT160_1)
+        'MOVIE1.CPK'    # Credits / No subtitles. Group 46 belongs to EVT161_2.
+    }
+    
     results = {}
-    for idx, group in enumerate(groups):
-        if idx < len(cpk_names):
-            name = cpk_names[idx]
-            # Normalise: ensure it has .CPK extension
-            if not name.upper().endswith('.CPK'):
-                name = name + '.CPK'
-            results[name.upper()] = group
-        else:
-            results[f'GROUP_{idx:02d}.CPK'] = group
+    
+    group_idx = 0
+    for cpk_name in cpk_names:
+        cpk_upper = cpk_name.upper()
+        if not cpk_upper.endswith('.CPK'):
+            cpk_upper += '.CPK'
+            
+        if cpk_upper in SKIPPED_CPKS:
+             # Skip this CPK, do not consume a group
+             continue
+             
+        if group_idx < len(groups):
+            results[cpk_upper] = groups[group_idx]
+            group_idx += 1
+
+    # Check for unmapped groups
+    if group_idx < len(groups):
+        print(f"  Warning: {len(groups) - group_idx} groups unmapped.")
 
     return results
 
@@ -752,8 +775,8 @@ def main():
                         help="Path to PDS disc image (raw BIN/ISO)")
     parser.add_argument('--output', default='output/subtitles',
                         help="Output directory for SRT files")
-    parser.add_argument('--fps', type=float, default=15.0,
-                        help="FMV frame rate (default: 15)")
+    parser.add_argument('--fps', type=float, default=30.0,
+                        help="FMV frame rate (default: 30.0)")
     parser.add_argument('--verbose', '-v', action='store_true',
                         help="Verbose output")
     parser.add_argument('--method', choices=['prg', 'dat', 'both'],
@@ -770,7 +793,7 @@ def main():
 
     prg_entries = [f for f in files if f['name'].upper().endswith('.PRG')]
     cpk_entries = [f for f in files if f['name'].upper().endswith('.CPK')]
-    cpk_names_on_disc = set(f['name'].upper() for f in cpk_entries)
+    cpk_names_on_disc = set(os.path.basename(f['name']).upper() for f in cpk_entries)
 
     print(f"Disc: {len(prg_entries)} PRG files, {len(cpk_entries)} CPK files")
 

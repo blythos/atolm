@@ -207,18 +207,21 @@ def main():
     parser.add_argument('--cpk', help="Path to single CPK file")
     parser.add_argument('--batch-folder', help="Process all ISO/BIN files in folder")
     parser.add_argument('--clean', action='store_true', help="Delete intermediate WAV/CPK files")
+    parser.add_argument('--audio-only', action='store_true', help="Skip video conversion (extract audio only)")
     parser.add_argument('--output', default="output/videos", help="Output directory")
     args = parser.parse_args()
     
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     
-    ffmpeg_exe = check_ffmpeg() 
-    if not ffmpeg_exe:
-        if os.path.exists('tools/ffmpeg.exe'): 
-            ffmpeg_exe = os.path.abspath('tools/ffmpeg.exe')
-        else:
-            print("Warning: FFmpeg not found. Video conversion will be skipped.")
+    ffmpeg_exe = None
+    if not args.audio_only:
+        ffmpeg_exe = check_ffmpeg() 
+        if not ffmpeg_exe:
+            if os.path.exists('tools/ffmpeg.exe'): 
+                ffmpeg_exe = os.path.abspath('tools/ffmpeg.exe')
+            else:
+                print("Warning: FFmpeg not found. Video conversion will be skipped.")
 
     def process_cpk_file(cpk_path):
         print(f"Processing {os.path.basename(cpk_path)}...")
@@ -353,7 +356,7 @@ def main():
         for entry in cpk_entries:
             print(f"Extracting {entry['name']}...")
             data = iso.extract_file(entry['lba'], entry['size'])
-            out_path = os.path.join(args.output, entry['name'])
+            out_path = os.path.join(args.output, os.path.basename(entry['name']))
             with open(out_path, 'wb') as f:
                 f.write(data)
             
