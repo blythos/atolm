@@ -137,11 +137,23 @@ boneGroup.rotation.order = 'YXZ';
 boneGroup.rotation.set(-rx * toRad, -ry * toRad, -rz * toRad);
 ```
 
-## Files Provided
+## Architecture
 
-1. **`pds_extract.py`** — Python extractor. Reads disc image, produces JSON files.
-2. **`pds_viewer.html`** — Self-contained viewer with embedded data for 14 models.
-3. **`docs/`** — Project documentation (see PROJECT_SCOPE.md for full format details).
+The tool is split into two completely separate parts:
+
+1. **`pds_extract.py`** — Python extractor. Reads the user's disc image, produces a directory of JSON files + a `manifest.json`.
+2. **`pds_viewer.html`** — Standalone viewer tool containing NO game data. The user copies it into the extraction directory as `index.html` and opens it in a browser. It auto-loads `manifest.json` to populate the model list, then fetches individual model JSONs on demand.
+
+```
+extracted/                  ← output from extractor
+  manifest.json             ← list of all extracted models
+  DRAGON0.json              ← individual model data
+  DRAGON1.json
+  ...
+  index.html                ← viewer (copied from pds_viewer.html)
+```
+
+**CRITICAL:** The viewer must NEVER contain embedded game data. No disc content in distributable files. The viewer is a generic tool; the extracted JSONs are local working files produced by the user from their own disc.
 
 ## Validation
 

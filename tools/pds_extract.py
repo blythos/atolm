@@ -376,13 +376,14 @@ def extract_mcb_cgb(mcb, cgb, name):
     }
 
 def main():
-    parser = argparse.ArgumentParser(description='PDS Extractor v3')
+    parser = argparse.ArgumentParser(description='PDS Extractor v3 — extract to a directory, then open index.html (the viewer) from that directory')
     parser.add_argument('disc', nargs='?')
     parser.add_argument('--mcb'); parser.add_argument('--cgb')
     parser.add_argument('-o','--output',default='extracted')
     parser.add_argument('-n','--names',nargs='*')
     parser.add_argument('--all',action='store_true')
     parser.add_argument('--list',action='store_true')
+    parser.add_argument('--viewer', help='Path to pds_viewer.html — will be copied into output dir as index.html')
     args = parser.parse_args()
     os.makedirs(args.output, exist_ok=True)
     
@@ -425,7 +426,16 @@ def main():
     
     with open(os.path.join(args.output,'manifest.json'),'w') as f:
         json.dump({'totalFiles':len(manifest),'files':manifest},f,indent=2)
+    
+    # Copy viewer into output dir as index.html if provided
+    if args.viewer and os.path.exists(args.viewer):
+        import shutil
+        shutil.copy2(args.viewer, os.path.join(args.output, 'index.html'))
+        print(f'\nViewer copied as {args.output}/index.html')
+    
     print(f'\nDone. {len(manifest)} files → {args.output}/')
+    print(f'To view: open {args.output}/index.html in a browser')
+    print(f'(If no index.html, copy pds_viewer.html into {args.output}/ as index.html)')
     iso.close()
 
 if __name__ == '__main__': main()
