@@ -8,7 +8,7 @@ The viewer *mostly* works — the dragon model renders with correct shape, textu
 
 ## Current State
 
-The viewer is a single self-contained HTML file with embedded model data. It uses Three.js r128. The extractor produces JSON in a specific format (documented below). Both files are provided.
+The viewer is a standalone HTML file (35KB, Three.js r128) containing no game data. The extractor produces JSON files into a directory alongside a `manifest.json`. The viewer is copied into that directory as `index.html` and auto-loads the manifest to populate its model list, fetching individual model JSONs on demand when selected.
 
 **What works:**
 - Dragon models render with recognizable shape
@@ -45,10 +45,12 @@ Many textures appear bright green instead of their correct colors. These are **b
 
 The extractor currently renders bank-mode textures as greyscale fallback, but some textures are coming out green instead.
 
+**This is an extractor-side fix** (`pds_extract.py`) — the viewer just displays whatever PNG textures it receives in the JSON.
+
 **Fix options (in order of effort):**
-1. **Immediate fix:** Ensure bank-mode fallback produces clean greyscale (not green). The greyscale code for mode 0 should produce grey pixels: `r=g=b=nibble*17`. Check the mode 4 (8bpp) path too.
-2. **Better fix:** Extract palette data from PNB files on the disc. PNB files are paired with SCB files and contain VDP2 Color RAM data. The palette offset for a given texture is `CMDCOLR * 2` bytes into the Color RAM. Each palette entry is RGB555 (same format as LUT palettes). Load the appropriate PNB and use its palette data for bank-mode textures.
-3. **Best fix:** Some models share palettes defined in PRG (script) files. This requires analyzing PRG bytecode which is out of scope for now.
+1. **Immediate fix (extractor):** Ensure bank-mode fallback in `extract_texture()` produces clean greyscale (not green). The greyscale code for mode 0 should produce grey pixels: `r=g=b=nibble*17`. Check the mode 4 (8bpp) path too.
+2. **Better fix (extractor):** Add PNB file loading to `pds_extract.py`. PNB files are paired with SCB files on the disc and contain VDP2 Color RAM data. The palette offset for a given texture is `CMDCOLR * 2` bytes into the Color RAM. Each palette entry is RGB555 (same format as LUT palettes). The extractor would need to find the matching PNB for each MCB/CGB pair and use its palette data when decoding bank-mode textures.
+3. **Best fix (out of scope):** Some models share palettes defined in PRG (script) files. This requires analyzing PRG bytecode.
 
 ### Bug 3: Animation Playback Jerkiness
 
@@ -157,11 +159,24 @@ extracted/                  ← output from extractor
 
 ## Validation
 
+The Disc 1 image is available at `ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 1).bin`. Run the extractor against it to produce test data, then copy `pds_viewer.html` into the output directory as `index.html` and open it in a browser.
+
+```bash
+python pds_extract.py "ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 1).bin" -o extracted --viewer pds_viewer.html
+# Then open extracted/index.html in a browser
+```
+
 - DRAGON0 with Hierarchy 0 selected should show a complete dragon with wings, body, legs, head, tail
 - At rest pose (no animation), the model should look correct with no detached parts
 - Playing Animation 0 should show a wing-flapping idle animation with all parts staying connected
 - Bank-mode textures should render as clean greyscale (not green) until PNB palette support is added
 - Switching between DRAGON0-7 should show 8 different dragon forms, all correctly assembled
+
+## Where Fixes Go
+
+- **Bug 1 (animation detach):** Primarily `pds_extract.py` (animation baking), possibly also the viewer's `walkNode` bone index tracking
+- **Bug 2 (green textures):** `pds_extract.py` only (texture decoding in `extract_texture()`)
+- **Bug 3 (animation jerkiness):** `pds_extract.py` only (keyframe interpolation in `bake_animation()`)
 
 ## Priority Order
 

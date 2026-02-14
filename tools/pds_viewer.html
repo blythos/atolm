@@ -984,10 +984,12 @@ function animate() {
 }
 animate();
 
-// ─── Populate File Selector from embedded manifest ───
-// This will be populated by the extraction script
-window.MANIFEST = null;
-window.EXTRACTED_DATA = {};
+
+// ─── File Loading ───
+// Models loaded from JSON files in the same directory via manifest.json.
+// Also supports drag-and-drop of individual .json files.
+
+const _modelCache = {};  // Runtime cache for fetched model data
 
 function populateFileList(manifest) {
   const select = document.getElementById('file-select');
@@ -1005,8 +1007,8 @@ document.getElementById('file-select').addEventListener('change', async function
   const name = this.value;
   if (!name) return;
 
-  if (window.EXTRACTED_DATA[name]) {
-    loadModelData(window.EXTRACTED_DATA[name]);
+  if (_modelCache[name]) {
+    loadModelData(_modelCache[name]);
     return;
   }
 
@@ -1016,7 +1018,7 @@ document.getElementById('file-select').addEventListener('change', async function
     const resp = await fetch(name + '.json');
     if (resp.ok) {
       const data = await resp.json();
-      window.EXTRACTED_DATA[name] = data;
+      _modelCache[name] = data;
       loadModelData(data);
     }
   } catch (e) {
@@ -1025,40 +1027,25 @@ document.getElementById('file-select').addEventListener('change', async function
   hideLoading();
 });
 
-// ─── Load inline data if present ───
-if (window.INLINE_MODEL_DATA) {
-  loadModelData(window.INLINE_MODEL_DATA);
-}
-
-// ─── Embedded Data ───
 // ─── Auto-load manifest.json from same directory ───
-window.MANIFEST = null;
-window.EXTRACTED_DATA = {};
-
 async function autoLoadManifest() {
   try {
     const resp = await fetch('manifest.json');
-    if (resp.ok) {
-      window.MANIFEST = await resp.json();
-      populateFileList(window.MANIFEST);
-      document.getElementById('welcome').querySelector('h2').textContent = 
-        window.MANIFEST.totalFiles + ' models available — select from the dropdown';
-      // Auto-load first model
-      if (window.MANIFEST.files.length > 0) {
-        const firstName = window.MANIFEST.files[0].name;
-        document.getElementById('file-select').value = firstName;
-        document.getElementById('file-select').dispatchEvent(new Event('change'));
-      }
-    } else {
-      console.log('No manifest.json found — use drag-and-drop or file selector');
+    if (!resp.ok) return;
+    const manifest = await resp.json();
+    populateFileList(manifest);
+    document.getElementById('welcome').querySelector('h2').textContent = 
+      manifest.totalFiles + ' models available — select from the dropdown';
+    // Auto-select first model
+    if (manifest.files.length > 0) {
+      const first = manifest.files[0].name;
+      document.getElementById('file-select').value = first;
+      document.getElementById('file-select').dispatchEvent(new Event('change'));
     }
   } catch (e) {
-    console.log('No manifest.json found — use drag-and-drop or file selector');
+    // No manifest found — user can drag-and-drop JSON files
   }
 }
-
-// Try loading manifest on startup
-autoLoadManifest();
 
 // ─── Animation Playback State ───
 let animPlaying = false;
@@ -1235,15 +1222,8 @@ function animateWithPlayback() {
 // Replace animation loop
 animateWithPlayback();
 
-// Auto-populate and load
-if (window.MANIFEST) {
-  populateFileList(window.MANIFEST);
-  const autoLoad = 'DRAGON0';
-  if (window.EXTRACTED_DATA[autoLoad]) {
-    document.getElementById('file-select').value = autoLoad;
-    loadModelData(window.EXTRACTED_DATA[autoLoad]);
-  }
-}
+// Start
+autoLoadManifest();
 
 </script>
 </body>
