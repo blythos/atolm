@@ -62,6 +62,31 @@ def extract_cpk_list(prg_data):
     # Find all strings ending in .CPK
     return [m.decode().upper() for m in re.findall(b'[\w-]+\.[Cc][Pp][Kk]', prg_data)]
 
+def get_cpk_frames(iso, files, cpk_name):
+    """Read the STAB chunk to get the number of frames (STAB records)."""
+    try:
+        entry = next(f for f in files if f['name'].upper() == cpk_name.upper())
+        # We only need the header to find STAB
+        # Read first 1MB should be enough for any STAB header
+        data = iso.extract_file(entry['lba'], min(entry['size'], 1024*1024))
+        
+        # FILM header: bytes 4-7 = header_len
+        header_len = read_u32_be(data, 4)
+        
+        offset = 16
+        while offset < header_len:
+            sig = data[offset:offset+4].decode('ascii', errors='ignore')
+            length = read_u32_be(data, offset+4)
+            if sig == 'STAB':
+                # STAB header: count at +12
+                # Note: This matches the user's robust version
+                count = read_u32_be(data, offset+12)
+                return count
+            offset += length
+    except Exception as e:
+        print(f"Warning: Could not get frames for {cpk_name}: {e}")
+    return 0
+
 def main():
     parser = argparse.ArgumentParser(description="Extract Subtitles from MOVIE.DAT Table")
     parser.add_argument('--iso', required=True, help="Path to PDS Disc 1 ISO/BIN")
@@ -94,7 +119,6 @@ def main():
         print("Warning: MOVIE.PRG not found. Files will be named by index.")
         cpk_names = []
         
-    iso.close()
     
     base = detect_base_address(dat_data)
     print(f"Detected Base Address: 0x{base:08X}")
@@ -138,26 +162,86 @@ def main():
 
     print(f"Found {len(groups)} subtitle groups.")
     
-    for idx, group in enumerate(groups):
-        if idx < len(cpk_names):
-            name = os.path.splitext(cpk_names[idx])[0]
-        else:
-            name = f"Group_{idx:02d}"
-            
-        srt_path = os.path.join(args.output, f"{name}.srt")
-        with open(srt_path, 'w', encoding='utf-8') as f:
-            for s_idx, sub in enumerate(group):
-                start_sec = sub['start_frame'] / args.fps
-                end_sec = sub['end_frame'] / args.fps
-                
-                # Boundary check: Ensure end >= start
-                if end_sec <= start_sec:
-                    end_sec = start_sec + 1.0 # Min duration
+    # 3. Match Groups to CPKs
+    # Groups are sequential. CPKs are sequential.
+    # A single group can span multiple CPKs if its frames exceed the CPK duration.
+    
+    # 3. Match Groups to CPKs
+    # Groups are sequential. CPKs are sequential.
+    # A single group can span multiple CPKs.
+    # A single CPK can contain multiple groups.
+    
+    cpk_idx = 0
+    group_idx = 0
+    
+    while cpk_idx < len(cpk_names) and group_idx < len(groups):
+        cpk_name = cpk_names[cpk_idx]
+        
+        # Check if file exists on this disc
+        cpk_frames = get_cpk_frames(iso, files, cpk_name)
+        if cpk_frames == 0:
+            # We skip files not on this disc
+            cpk_idx += 1
+            continue
 
-                f.write(f"{s_idx+1}\n")
-                f.write(f"{time_to_srt_timestamp(start_sec)} --> {time_to_srt_timestamp(end_sec)}\n")
-                f.write(f"{sub['text']}\n\n")
-        print(f"Saved {srt_path} ({len(group)} lines)")
+        print(f"Processing {cpk_name} ({cpk_frames} frames)...")
+        
+        cpk_subs = []
+        while group_idx < len(groups) and cpk_frames > 0:
+            group = groups[group_idx]
+            remaining_group = []
+            
+            for sub in group:
+                if sub['start_frame'] < cpk_frames:
+                    # Starts in this movie
+                    s = sub.copy()
+                    if s['end_frame'] > cpk_frames:
+                        s['end_frame'] = cpk_frames
+                    cpk_subs.append(s)
+                    
+                    if sub['end_frame'] > cpk_frames:
+                        rem = sub.copy()
+                        rem['start_frame'] = 0
+                        rem['end_frame'] = sub['end_frame'] - cpk_frames
+                        remaining_group.append(rem)
+                else:
+                    # Starts in next movie
+                    rem = sub.copy()
+                    rem['start_frame'] -= cpk_frames
+                    rem['end_frame'] -= cpk_frames
+                    remaining_group.append(rem)
+
+            if not remaining_group:
+                # Group finished in this movie
+                group_idx += 1
+                # Continue loop to check if next group starts in this same movie
+            else:
+                # Group split or starts later.
+                groups[group_idx] = remaining_group
+                # If group starts later (start_frame >= cpk_frames for all), 
+                # we still move to next CPK.
+                break
+
+        # Save SRT for this CPK
+        if cpk_subs:
+            name = os.path.splitext(cpk_name)[0]
+            srt_path = os.path.join(args.output, f"{name}.srt")
+            with open(srt_path, 'w', encoding='utf-8') as f:
+                # Sort subs by start frame just in case
+                cpk_subs.sort(key=lambda x: x['start_frame'])
+                for s_idx, sub in enumerate(cpk_subs):
+                    start_sec = sub['start_frame'] / args.fps
+                    end_sec = sub['end_frame'] / args.fps
+                    if end_sec <= start_sec: end_sec = start_sec + 0.5
+                    
+                    f.write(f"{s_idx+1}\n")
+                    f.write(f"{time_to_srt_timestamp(start_sec)} --> {time_to_srt_timestamp(end_sec)}\n")
+                    f.write(f"{sub['text']}\n\n")
+            print(f"  Saved {srt_path} ({len(cpk_subs)} lines)")
+
+        cpk_idx += 1
+    
+    iso.close()
 
 
 if __name__ == '__main__':

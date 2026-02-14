@@ -9,161 +9,182 @@ import shutil
 from common.iso9660 import ISO9660Reader
 from common.saturn import read_u32_be
 
+
 class SegaFilmParser:
+    """Parser for Sega FILM/CPK container format.
+    
+    Reference: https://multimedia.cx/film-format.txt (Mike Melanson)
+    Reference: FFmpeg libavformat/segafilm.c (film_read_header)
+    
+    FILM header (16 bytes):
+      bytes 0-3:   'FILM' signature
+      bytes 4-7:   total header length (= offset to sample data start)
+      bytes 8-11:  version string (e.g. '1.07')
+      bytes 12-15: reserved (0)
+    
+    FDSC chunk (32 bytes, standard Saturn):
+      bytes 0-3:   'FDSC' signature
+      bytes 4-7:   chunk length (0x20 = 32)
+      bytes 8-11:  video codec FOURCC ('cvid')
+      bytes 12-15: video height (u32 BE)
+      bytes 16-19: video width (u32 BE)
+      byte 20:     unknown (0x18)
+      byte 21:     audio channels
+      byte 22:     audio bit depth (8 or 16)
+      byte 23:     unknown
+      bytes 24-25: audio sample rate (u16 BE)
+      bytes 26-31: reserved
+    
+    STAB chunk:
+      bytes 0-3:   'STAB' signature
+      bytes 4-7:   chunk length
+      bytes 8-11:  base clock frequency (Hz)
+      bytes 12-15: number of sample table entries
+      bytes 16+:   sample records (16 bytes each)
+    
+    Each sample record:
+      bytes 0-3:   offset from start of sample data
+      bytes 4-7:   size of sample chunk
+      bytes 8-11:  info1 (0xFFFFFFFF = audio; else video timestamp)
+      bytes 12-15: info2 (video: ticks to next frame; audio: always 1)
+    """
     def __init__(self, data):
         self.data = data
-        self.offset = 0
         self._parse()
         
     def _parse(self):
         if self.data[0:4] != b'FILM':
             raise ValueError("Not a FILM file")
             
-        file_len = read_u32_be(self.data, 4)
-        print(f"File Length: {file_len}")
+        # bytes 4-7: total header length = offset to start of sample data
+        self.data_base_offset = read_u32_be(self.data, 4)
+        version = self.data[8:12].decode('ascii', errors='ignore')
+        print(f"FILM: header_len={self.data_base_offset}, version='{version}'")
         
-        self.offset = 16 # Skip 'FILM' + Size + Version + Reserved?
-        
-        while self.offset < len(self.data):
-            chunk_sig = self.data[self.offset:self.offset+4].decode('ascii', errors='ignore')
-            chunk_size = read_u32_be(self.data, self.offset+4)
-            
-            print(f"Chunk: {chunk_sig}, Size: {chunk_size}")
+        # Sub-chunks start at offset 16 (after FILM preamble)
+        offset = 16
+        while offset < self.data_base_offset:
+            chunk_sig = self.data[offset:offset+4].decode('ascii', errors='ignore')
+            chunk_len = read_u32_be(self.data, offset+4)
             
             if chunk_sig == 'FDSC':
-                self._parse_fdsc(self.offset+8, chunk_size-8)
+                self._parse_fdsc(offset)
             elif chunk_sig == 'STAB':
-                self._parse_stab(self.offset+8, chunk_size-8)
-                self.data_base_offset = self.offset + chunk_size
-                break # Usually nothing after STAB except data
+                self._parse_stab(offset, chunk_len)
             
-            self.offset += chunk_size
+            # chunk_len includes the 8-byte sig+length header
+            offset += chunk_len
 
-    def _parse_fdsc(self, offset, length):
-        codec = self.data[offset:offset+4].decode('ascii', errors='ignore')
-        height = read_u32_be(self.data, offset+4)
-        width = read_u32_be(self.data, offset+8)
-        # Audio params
-        channels = self.data[offset+13]
+    def _parse_fdsc(self, base):
+        """Parse FDSC chunk. Offsets are from chunk start."""
+        codec = self.data[base+8:base+12].decode('ascii', errors='ignore')
+        height = read_u32_be(self.data, base+12)
+        width = read_u32_be(self.data, base+16)
+        channels = self.data[base+21]
+        bit_depth = self.data[base+22]
+        sample_rate = struct.unpack('>H', self.data[base+24:base+26])[0]
+        
+        # Defensive defaults
         if channels == 0: channels = 1
-        bit_depth = self.data[offset+14]
         if bit_depth == 0: bit_depth = 16
         
-        print(f"  FDSC Info: {width}x{height} {codec}, Audio: {channels}ch {bit_depth}bit")
+        print(f"  FDSC: {width}x{height} {codec}, {channels}ch {bit_depth}bit {sample_rate}Hz")
         
         self.header = {
             'width': width, 'height': height, 'codec': codec,
-            'bit_depth': bit_depth, 'channels': channels
+            'bit_depth': bit_depth, 'channels': channels,
+            'sample_rate': sample_rate,
         }
-        
-        # Sample Rate is unreliable in FDSC for these files
-        # We will enforce 32000 in extract_audio
 
-    def _parse_stab(self, offset, length):
-        # STAB Header (within payload)
-        frame_count = read_u32_be(self.data, offset+4)
-        print(f"  STAB Info: {frame_count} frames")
+    def _parse_stab(self, base, chunk_len):
+        """Parse STAB chunk. Offsets are from chunk start."""
+        self.stab_base_freq = read_u32_be(self.data, base+8)
+        num_entries = read_u32_be(self.data, base+12)
+        print(f"  STAB: base_freq={self.stab_base_freq}Hz, {num_entries} entries")
         
-        # Chunk Table Entries (16 bytes each)
-        table_offset = offset + 8
         self.stab_entries = []
+        audio_count = 0
+        video_count = 0
         
-        audio_chunk_count = 0
-        
-        for i in range(frame_count):
-            if table_offset + 16 > offset + length: break
+        for i in range(num_entries):
+            rec = base + 16 + i * 16
+            if rec + 16 > base + chunk_len:
+                break
             
-            info1 = read_u32_be(self.data, table_offset)
-            info2 = read_u32_be(self.data, table_offset+4)
-            off = read_u32_be(self.data, table_offset+8)
-            size = read_u32_be(self.data, table_offset+12)
+            # Standard Sega FILM record layout (confirmed by FFmpeg source):
+            #   bytes 0-3: offset, 4-7: size, 8-11: info1, 12-15: info2
+            sample_offset = read_u32_be(self.data, rec)
+            sample_size   = read_u32_be(self.data, rec+4)
+            info1         = read_u32_be(self.data, rec+8)
+            info2         = read_u32_be(self.data, rec+12)
             
-            off = off & 0x7FFFFFFF
-
-            if off == 0x7FFFFFFF:
-                table_offset += 16
-                continue
-
-            self.stab_entries.append({'offset': off, 'size': size, 'info1': info1, 'info2': info2})
-            if info1 != 0xFFFFFFFF:
-                 audio_chunk_count += 1
-
-            table_offset += 16
+            self.stab_entries.append({
+                'offset': sample_offset,
+                'size': sample_size,
+                'info1': info1,
+                'info2': info2,
+            })
             
-        print(f"  STAB Entries found: {len(self.stab_entries)}")
-        print(f"  Potential Audio Chunks: {audio_chunk_count}")
+            # Per spec + FFmpeg: info1 == 0xFFFFFFFF means audio
+            if info1 == 0xFFFFFFFF:
+                audio_count += 1
+            else:
+                video_count += 1
 
+        print(f"  STAB: parsed {len(self.stab_entries)} ({video_count} video, {audio_count} audio)")
 
     def extract_audio(self):
-        """Extract audio to WAV-ready PCM data."""
+        """Extract interleaved audio chunks to WAV-ready PCM data.
+        
+        Per spec: audio chunks have info1 == 0xFFFFFFFF.
+        Data is signed PCM, big-endian for 16-bit, at sample offsets
+        relative to data_base_offset.
+        """
         if not hasattr(self, 'data_base_offset'):
             return b''
             
         base = self.data_base_offset
         channels = self.header.get('channels', 1)
-        if channels == 0: channels = 1 # Force valid channel count
-        
+        if channels == 0: channels = 1
         bit_depth = self.header.get('bit_depth', 16)
         
+        audio_entries = [e for e in self.stab_entries if e['info1'] == 0xFFFFFFFF]
+        print(f"  Extracting {len(audio_entries)} audio chunks...")
+        
         audio_parts = []
-        
-        print(f"  Extracting Audio ({len(self.stab_entries)} table entries)...")
-        
-        for entry in self.stab_entries:
-            if entry['info1'] != 0xFFFFFFFF: 
-                # Potential Audio Chunk (Info2=0x28 typically)
-                # But some Info2=0x28 chunks are actually Video Metadata/Interframes.
+        for entry in audio_entries:
+            offset = base + entry['offset']
+            size = entry['size']
+            
+            if offset + size > len(self.data):
+                print(f"    Warning: chunk out of bounds (offset={offset}, size={size})")
+                continue
                 
-                offset = base + entry['offset']
-                size = entry['size']
-                
-                if offset + size > len(self.data):
-                    print(f"    Warning: Audio chunk out of bounds (Offset {offset}, Size {size})")
-                    continue
-                    
-                chunk = self.data[offset : offset+size]
-                
-                # Content-Aware Checks
-                is_video = False
-                if size >= 4:
-                    h_val_raw = struct.unpack('>I', chunk[0:4])[0]
-                    # Mask out the first byte (Flags?) to check size
-                    # Video headers often 00 00 Size OR 01 00 Size
-                    h_val = h_val_raw & 0x00FFFFFF
-                    
-                    if h_val == size or h_val == size - 8 or h_val == size - 4:
-                        is_video = True
-                    
-                if is_video:
-                    continue
-                        
-                # It's Audio.
-                if not chunk: continue
-                
-                # Conversion
-                if bit_depth == 16:
-                    samples = np.frombuffer(chunk, dtype='>i2') # BE Signed 16
-                else:
-                    samples = np.frombuffer(chunk, dtype='i1') # Signed 8
-                                
-                audio_parts.append(samples)
+            chunk = self.data[offset:offset+size]
+            if not chunk:
+                continue
+            
+            if bit_depth == 16:
+                if len(chunk) % 2 != 0:
+                    chunk = chunk[:-1]
+                samples = np.frombuffer(chunk, dtype='>i2')  # BE Signed 16
+            else:
+                samples = np.frombuffer(chunk, dtype='i1')   # Signed 8
+                            
+            audio_parts.append(samples)
                 
         if not audio_parts:
-             print("  No audio chunks found.")
-             return b''
+            print("  No audio chunks found.")
+            return b''
 
         audio_data = np.concatenate(audio_parts)
         
-        # WAV Creation
-        # Enforce 32000 Hz for Panzer Dragoon Saga
-        sample_rate = 32000 
-        
-        # Convert to Bytes (Little Endian for WAV)
+        # Convert to Little Endian for WAV
         if bit_depth == 16:
-             audio_data_le = audio_data.astype('<i2')
-             return audio_data_le.tobytes()
+            return audio_data.astype('<i2').tobytes()
         else:
-             return audio_data.tobytes()
+            return audio_data.tobytes()
+
 
 def write_wav(filename, audio_data, channels, sample_rate, bit_depth):
     import wave
@@ -199,7 +220,6 @@ def main():
         else:
             print("Warning: FFmpeg not found. Video conversion will be skipped.")
 
-    # Helper function
     def process_cpk_file(cpk_path):
         print(f"Processing {os.path.basename(cpk_path)}...")
         wav_path = os.path.splitext(cpk_path)[0] + ".wav"
@@ -209,15 +229,19 @@ def main():
             data = f.read()
             
         try:
-            parser = SegaFilmParser(data)
-            wav_data = parser.extract_audio()
+            film = SegaFilmParser(data)
+            wav_data = film.extract_audio()
             
             if wav_data:
+                # Use FDSC sample rate if plausible, else default to 32000
+                sr = film.header.get('sample_rate', 0)
+                if sr < 8000 or sr > 48000:
+                    sr = 32000
                 write_wav(wav_path, wav_data, 
-                          parser.header.get('channels', 1),
-                          32000, 
-                          parser.header.get('bit_depth', 16))
-                print(f"  Saved Audio: {wav_path}")
+                          film.header.get('channels', 1),
+                          sr, 
+                          film.header.get('bit_depth', 16))
+                print(f"  Saved Audio: {wav_path} ({sr}Hz)")
                 
         except Exception as e:
             print(f"  Error parsing: {e}")
@@ -228,7 +252,7 @@ def main():
             inputs = ['-i', cpk_path]
             map_args = ['-map', '0:v']
             
-            # Map Audio: Use extracted WAV if it exists, else use FFmpeg's internal decoder
+            # Map Audio: Use extracted WAV if it exists, else try FFmpeg's internal decoder
             if os.path.exists(wav_path):
                 inputs += ['-i', wav_path]
                 map_args += ['-map', '1:a']
@@ -304,7 +328,6 @@ def main():
                     print(f"  Extracting {entry['name']}...")
                     data = iso.extract_file(entry['lba'], entry['size'])
                     
-                    # Temp file for processing
                     cpk_temp = os.path.join(args.output, entry['name'])
                     with open(cpk_temp, 'wb') as f:
                         f.write(data)
