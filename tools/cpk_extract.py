@@ -31,32 +31,23 @@ class SegaFilmParser:
             print(f"Chunk: {chunk_sig}, Size: {chunk_size}")
             
             if chunk_sig == 'FDSC':
-                self._parse_fdsc(self.offset+16, chunk_size-16)
+                self._parse_fdsc(self.offset+8, chunk_size-8)
             elif chunk_sig == 'STAB':
-                # STAB (Sample Table) - Contains offsets to data chunks
-                # Data usually follows STAB immediately?
-                payload_len = chunk_size - 16 # Header is 16 bytes?
-                
-                # Check where data starts. 
-                # STAB offsets are relative to the end of STAB? or start of file?
-                # Usually relative to a "base" offset.
-                
-                data_start = self.offset
-                
-                # The data base offset is generally the end of the STAB chunk
+                self._parse_stab(self.offset+8, chunk_size-8)
                 self.data_base_offset = self.offset + chunk_size
-                
-                self._parse_stab(data_start, payload_len)
                 break # Usually nothing after STAB except data
             
             self.offset += chunk_size
 
     def _parse_fdsc(self, offset, length):
-        codec = self.data[offset:offset+4].decode('ascii')
-        height = self.data[offset+4]
-        width = self.data[offset+5]
-        bit_depth = self.data[offset+6]
-        channels = self.data[offset+7]
+        codec = self.data[offset:offset+4].decode('ascii', errors='ignore')
+        height = read_u32_be(self.data, offset+4)
+        width = read_u32_be(self.data, offset+8)
+        # Audio params
+        channels = self.data[offset+13]
+        if channels == 0: channels = 1
+        bit_depth = self.data[offset+14]
+        if bit_depth == 0: bit_depth = 16
         
         print(f"  FDSC Info: {width}x{height} {codec}, Audio: {channels}ch {bit_depth}bit")
         
@@ -69,15 +60,12 @@ class SegaFilmParser:
         # We will enforce 32000 in extract_audio
 
     def _parse_stab(self, offset, length):
-        # STAB Header
-        # 0x00: Framerate (float? or fixed?)
-        # 0x04: Image Count / Frame Count
-        
+        # STAB Header (within payload)
         frame_count = read_u32_be(self.data, offset+4)
         print(f"  STAB Info: {frame_count} frames")
         
         # Chunk Table Entries (16 bytes each)
-        table_offset = offset + 16
+        table_offset = offset + 8
         self.stab_entries = []
         
         audio_chunk_count = 0
@@ -85,23 +73,18 @@ class SegaFilmParser:
         for i in range(frame_count):
             if table_offset + 16 > offset + length: break
             
-            # Layout: 0-3=Info1/Flags, 4-7=Info2, 8-11=Offset, 12-15=Size
             info1 = read_u32_be(self.data, table_offset)
             info2 = read_u32_be(self.data, table_offset+4)
             off = read_u32_be(self.data, table_offset+8)
             size = read_u32_be(self.data, table_offset+12)
             
-            # Mask potential high-bit flags in offset
             off = off & 0x7FFFFFFF
 
-            # Skip chunks with invalid offsets (e.g. FFFFFFFF masked to 7FFFFFFF)
             if off == 0x7FFFFFFF:
+                table_offset += 16
                 continue
 
             self.stab_entries.append({'offset': off, 'size': size, 'info1': info1, 'info2': info2})
-            
-            # Info1 != FFFFFFFF suggests Audio (or at least non-frame data)
-            # Info2=28 is common for both Interframe Video and Audio
             if info1 != 0xFFFFFFFF:
                  audio_chunk_count += 1
 
@@ -203,7 +186,7 @@ def main():
     parser.add_argument('--cpk', help="Path to single CPK file")
     parser.add_argument('--batch-folder', help="Process all ISO/BIN files in folder")
     parser.add_argument('--clean', action='store_true', help="Delete intermediate WAV/CPK files")
-    parser.add_argument('--output', default="output", help="Output directory")
+    parser.add_argument('--output', default="output/videos", help="Output directory")
     args = parser.parse_args()
     
     if not os.path.exists(args.output):
@@ -243,18 +226,43 @@ def main():
 
         if ffmpeg_exe:
             inputs = ['-i', cpk_path]
-            audio_args = []
+            map_args = ['-map', '0:v']
             
+            # Map Audio: Use extracted WAV if it exists, else use FFmpeg's internal decoder
             if os.path.exists(wav_path):
                 inputs += ['-i', wav_path]
-                audio_args = ['-map', '0:v', '-map', '1:a']
+                map_args += ['-map', '1:a']
+            else:
+                map_args += ['-map', '0:a?']
+
+            # Map Subtitles: Search for matching SRT file
+            srt_name = os.path.splitext(os.path.basename(cpk_path))[0] + ".srt"
+            srt_search_paths = [
+                os.path.join("output/subtitles", srt_name),
+                os.path.join("subtitles", srt_name)
+            ]
+            srt_path = next((p for p in srt_search_paths if os.path.exists(p)), None)
+            
+            sub_args = []
+            if srt_path:
+                print(f"  Found Subtitles: {srt_path}")
+                inputs += ['-i', srt_path]
+                sub_idx = inputs.count('-i') - 1
+                map_args += ['-map', f'{sub_idx}:s']
+                sub_args = [
+                    '-c:s', 'mov_text', 
+                    '-metadata:s:s:0', 'title=English', 
+                    '-metadata:s:s:0', 'language=eng',
+                    '-disposition:s:0', 'default'
+                ]
 
             cmd = [
                 ffmpeg_exe, 
                 *inputs,
-                *audio_args,
+                *map_args,
                 '-c:v', 'libx264', '-crf', '18',
                 '-pix_fmt', 'yuv420p', 
+                *sub_args,
                 '-y', mp4_path,
                 '-hide_banner', '-loglevel', 'error'
             ]
