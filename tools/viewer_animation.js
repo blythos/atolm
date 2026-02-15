@@ -668,23 +668,28 @@ class AnimationController {
 
     /**
      * Get the current pose as float arrays suitable for rendering.
-     * Converts 16.16 fixed-point to floats.
+     * Converts internal fixed-point values to floats:
+     *   - Translation: 12.4 FP, same space as vertices (÷16 = vertexScale)
+     *   - Rotation: internal = trackValue × 65536 (where trackValue is in Saturn
+     *     12-bit angles, 4096 = full circle). Convert: ÷65536 → trackValue, then
+     *     × 2π/4096 → radians.
+     *   - Scale: 16.16 FP (1.0 = 0x10000, ÷65536)
      *
      * @param {number} vertexScale - Vertex coordinate scale (default: 1/16 for 12.4 FP)
      * @returns {Array} Array of {translation, rotation, scale} per bone (in floats)
      */
     getPoseForRendering(vertexScale = 1.0 / 16.0) {
-        const FP = 1.0 / 65536.0; // 16.16 FP to float
-        const ROT_SCALE = (2.0 * Math.PI) / 4096.0; // 12-bit angle to radians
+        const FP = 1.0 / 65536.0;       // 16.16 FP to float
+        const ROT_SCALE = (2.0 * Math.PI) / 4096.0; // Saturn 12-bit angle to radians
         const result = [];
 
         for (let i = 0; i < this.numBones; i++) {
             const pose = this.poseData[i];
             result.push({
                 translation: [
-                    pose.translation[0] * FP * vertexScale,
-                    pose.translation[1] * FP * vertexScale,
-                    pose.translation[2] * FP * vertexScale,
+                    pose.translation[0] * vertexScale,
+                    pose.translation[1] * vertexScale,
+                    pose.translation[2] * vertexScale,
                 ],
                 rotation: [
                     (pose.rotation[0] * FP) * ROT_SCALE,
