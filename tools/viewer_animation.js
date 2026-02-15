@@ -240,7 +240,7 @@ class AnimationController {
             this._resetPoseScale();
         }
 
-        // Reset track states
+        // Reset track states and half-step interpolation values
         for (let i = 0; i < this.numBones; i++) {
             const mode = animation.mode;
             if (mode === 1 || mode === 4 || mode === 5) {
@@ -250,6 +250,9 @@ class AnimationController {
                     this.poseData[i].trackState[j].value = 0;
                 }
             }
+            this.poseData[i].halfTranslation = [0, 0, 0];
+            this.poseData[i].halfRotation = [0, 0, 0];
+            this.poseData[i].halfScale = [0, 0, 0];
         }
 
         this.playing = true;
@@ -280,22 +283,12 @@ class AnimationController {
         this.currentFrame++;
         if (this.currentFrame >= anim.numFrames) {
             if (this.loop) {
-                this.currentFrame = 0;
-                // Reset track states for looping
-                for (let i = 0; i < this.numBones; i++) {
-                    for (let j = 0; j < 9; j++) {
-                        this.poseData[i].trackState[j].currentStep = 0;
-                        this.poseData[i].trackState[j].delay = 0;
-                        this.poseData[i].trackState[j].value = 0;
-                    }
-                }
-                // Re-copy default pose for flag-based channels
-                if (anim.hasPosition) this._copyPosePositions();
-                if (anim.hasRotation) this._copyPoseRotations();
-                if (anim.hasScale) this._resetPoseScale();
-                // Step to frame 0
-                this.stepAnimation();
-                this.currentFrame = 0; // avoid double increment
+                // Fully re-initialize animation from scratch.
+                // This resets all track states, pose data, and half-step values,
+                // then processes frame 0 on the next stepAnimation() call.
+                const animRef = this.currentAnimation;
+                this.setAnimation(animRef);
+                this.playing = true;
                 return true;
             } else {
                 this.playing = false;
@@ -669,9 +662,11 @@ class AnimationController {
     /**
      * Get the current pose as float arrays suitable for rendering.
      * Converts internal fixed-point values to floats:
-     *   - Translation: 12.4 FP, same space as vertices (÷16 = vertexScale)
-     *   - Rotation: internal = trackValue × 65536 (where trackValue is in Saturn
-     *     12-bit angles, 4096 = full circle). Convert: ÷65536 → trackValue, then
+     *   - Translation: internal values (from stepAnimationTrack × 16) need ÷256
+     *     to match viewer vertex space. (mcb_extract.py uses ÷4096; viewer is 16×
+     *     larger because it divides vertices by 16 instead of 256, so ÷4096×16 = ÷256)
+     *   - Rotation: internal = trackValue × 65536 (stepAnimationTrack×16 × 0x1000).
+     *     ÷65536 gives trackValue in Saturn 12-bit angles (4096=360°).
      *     × 2π/4096 → radians.
      *   - Scale: 16.16 FP (1.0 = 0x10000, ÷65536)
      *
@@ -679,7 +674,8 @@ class AnimationController {
      * @returns {Array} Array of {translation, rotation, scale} per bone (in floats)
      */
     getPoseForRendering(vertexScale = 1.0 / 16.0) {
-        const FP = 1.0 / 65536.0;       // 16.16 FP to float
+        const TRANS_SCALE = 1.0 / 256.0; // ÷4096 (mcb FP) × 16 (viewer/mcb ratio)
+        const FP = 1.0 / 65536.0;        // 16.16 FP to float
         const ROT_SCALE = (2.0 * Math.PI) / 4096.0; // Saturn 12-bit angle to radians
         const result = [];
 
@@ -687,9 +683,9 @@ class AnimationController {
             const pose = this.poseData[i];
             result.push({
                 translation: [
-                    pose.translation[0] * vertexScale,
-                    pose.translation[1] * vertexScale,
-                    pose.translation[2] * vertexScale,
+                    pose.translation[0] * TRANS_SCALE,
+                    pose.translation[1] * TRANS_SCALE,
+                    pose.translation[2] * TRANS_SCALE,
                 ],
                 rotation: [
                     (pose.rotation[0] * FP) * ROT_SCALE,

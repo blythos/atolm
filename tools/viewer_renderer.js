@@ -374,9 +374,9 @@ const VERT_SHADER = `
         vTexCoord = aTexCoord;
         vColor = aColor;
 
-        // Simple directional lighting
+        // Two-sided lighting (no backface culling, so both sides should be lit equally)
         vec3 worldNormal = normalize(mat3(uModel) * aNormal);
-        vLighting = max(dot(worldNormal, normalize(uLightDir)), 0.0) * 0.6 + 0.4;
+        vLighting = abs(dot(worldNormal, normalize(uLightDir))) * 0.6 + 0.4;
     }
 `;
 
@@ -441,7 +441,7 @@ class PDSRenderer {
         // Camera
         this.cameraDistance = 200;
         this.cameraRotX = 0.3;
-        this.cameraRotY = 0;
+        this.cameraRotY = -0.4;
         this.cameraPanX = 0;
         this.cameraPanY = 0;
 
