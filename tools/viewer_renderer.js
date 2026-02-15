@@ -449,11 +449,18 @@ class PDSRenderer {
         this.showWireframe = false;
         this.showBones = false;
         this.showTexture = true;
+        this.backfaceCull = false;
+        this.showGrid = true;
+        this.showBBoxes = false;
+        this.showAtlas = false;
+        this.atlasBuffer = null;
 
         // Model data
         this.meshBuffers = null;
         this.wireBuffers = null;
         this.boneBuffers = null;
+        this.bboxBuffers = null;
+        this.gridBuffer = null;
         this.atlasTexture = null;
         this.atlasData = null;
 
@@ -603,6 +610,7 @@ class PDSRenderer {
         const colors = [];
         const wirePositions = [];
         const bonePositions = [];
+        const bboxPositions = [];
 
         const FP_VERT = 1.0 / 16.0; // 12.4 → float
         const hierNodes = this.currentHierarchy.parsedNodes;
@@ -643,9 +651,12 @@ class PDSRenderer {
                 const model = this.currentModels[node.modelOffset];
                 if (!model) continue;
 
+                let bMin = [Infinity, Infinity, Infinity];
+                let bMax = [-Infinity, -Infinity, -Infinity];
+
                 for (const quad of model.quads) {
                     const idx = quad.indices;
-                    // Compute face normal from first triangle
+                    // Compute vertices
                     const v0 = mat4_transformPoint(worldMatrix, [
                         model.vertices[idx[0]][0] * FP_VERT,
                         model.vertices[idx[0]][1] * FP_VERT,
@@ -662,6 +673,14 @@ class PDSRenderer {
                         model.vertices[idx[3]][0] * FP_VERT,
                         model.vertices[idx[3]][1] * FP_VERT,
                         model.vertices[idx[3]][2] * FP_VERT]);
+
+                    // Update bounds
+                    if (this.showBBoxes) {
+                        for (const v of [v0, v1, v2, v3]) {
+                            bMin[0] = Math.min(bMin[0], v[0]); bMin[1] = Math.min(bMin[1], v[1]); bMin[2] = Math.min(bMin[2], v[2]);
+                            bMax[0] = Math.max(bMax[0], v[0]); bMax[1] = Math.max(bMax[1], v[1]); bMax[2] = Math.max(bMax[2], v[2]);
+                        }
+                    }
 
                     const e1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
                     const e2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
@@ -706,10 +725,31 @@ class PDSRenderer {
                     wirePositions.push(...v0, ...v1, ...v1, ...v2,
                         ...v2, ...v3, ...v3, ...v0);
                 }
+
+                if (this.showBBoxes && bMin[0] !== Infinity) {
+                    const [x0, y0, z0] = bMin;
+                    const [x1, y1, z1] = bMax;
+                    // 12 lines for a box
+                    // Bottom face
+                    bboxPositions.push(x0, y0, z0, x1, y0, z0);
+                    bboxPositions.push(x1, y0, z0, x1, y0, z1);
+                    bboxPositions.push(x1, y0, z1, x0, y0, z1);
+                    bboxPositions.push(x0, y0, z1, x0, y0, z0);
+                    // Top face
+                    bboxPositions.push(x0, y1, z0, x1, y1, z0);
+                    bboxPositions.push(x1, y1, z0, x1, y1, z1);
+                    bboxPositions.push(x1, y1, z1, x0, y1, z1);
+                    bboxPositions.push(x0, y1, z1, x0, y1, z0);
+                    // Verticals
+                    bboxPositions.push(x0, y0, z0, x0, y1, z0);
+                    bboxPositions.push(x1, y0, z0, x1, y1, z0);
+                    bboxPositions.push(x1, y0, z1, x1, y1, z1);
+                    bboxPositions.push(x0, y0, z1, x0, y1, z1);
+                }
             }
         }
 
-        this._uploadBuffers(positions, texCoords, normals, colors, wirePositions, bonePositions);
+        this._uploadBuffers(positions, texCoords, normals, colors, wirePositions, bonePositions, bboxPositions);
     }
 
     /**
@@ -770,7 +810,7 @@ class PDSRenderer {
         this._uploadBuffers(positions, texCoords, normals, colors, wirePositions, []);
     }
 
-    _uploadBuffers(positions, texCoords, normals, colors, wirePositions, bonePositions) {
+    _uploadBuffers(positions, texCoords, normals, colors, wirePositions, bonePositions, bboxPositions) {
         const gl = this.gl;
 
         this.meshBuffers = {
@@ -790,6 +830,14 @@ class PDSRenderer {
             this.boneBuffers = {
                 position: this._createBuffer(new Float32Array(bonePositions)),
                 pointCount: bonePositions.length / 3,
+                _rawPositions: bonePositions // Store for labels
+            };
+        }
+
+        if (bboxPositions && bboxPositions.length > 0) {
+            this.bboxBuffers = {
+                position: this._createBuffer(new Float32Array(bboxPositions)),
+                lineCount: bboxPositions.length / 3,
             };
         }
     }
@@ -814,12 +862,78 @@ class PDSRenderer {
         gl.clearColor(0.09, 0.09, 0.12, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+        if (this.showAtlas && this.atlasTexture) {
+            gl.disable(gl.CULL_FACE);
+            gl.useProgram(this.mainProgram);
+
+            const id = mat4_identity();
+            gl.uniformMatrix4fv(this.mainLocs.uProjection, false, id);
+            gl.uniformMatrix4fv(this.mainLocs.uView, false, id);
+
+            // Adjust aspect ratio to show square texture correctly
+            let scaleX = 1, scaleY = 1;
+            const aspect = w / h;
+            if (aspect > 1) scaleX = 1 / aspect; else scaleY = aspect;
+
+            const model = mat4_scale(mat4_identity(), scaleX * 0.9, scaleY * 0.9, 1);
+            gl.uniformMatrix4fv(this.mainLocs.uModel, false, model);
+
+            gl.uniform3f(this.mainLocs.uLightDir, 0.0, 0.0, 1.0);
+            gl.uniform1f(this.mainLocs.uAlpha, 1.0);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.atlasTexture);
+            gl.uniform1i(this.mainLocs.uTexture, 0);
+            gl.uniform1i(this.mainLocs.uUseTexture, 1);
+
+            if (!this.atlasBuffer) this._buildAtlasBuffer();
+
+            this._bindAttrib(this.mainLocs.aPosition, this.atlasBuffer.position, 3);
+            this._bindAttrib(this.mainLocs.aTexCoord, this.atlasBuffer.texCoord, 2);
+            this._bindAttrib(this.mainLocs.aNormal, this.atlasBuffer.normal, 3);
+            this._bindAttrib(this.mainLocs.aColor, this.atlasBuffer.color, 4);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            return;
+        }
+
         if (!this.meshBuffers) return;
 
         const proj = mat4_perspective(45 * Math.PI / 180, w / h, 0.1, this.cameraDistance * 10);
         const view = mat4_lookAt(this.cameraDistance, this.cameraRotX, this.cameraRotY,
             this.cameraPanX, this.cameraPanY);
         const model = mat4_identity();
+
+        // Draw Grid
+        if (this.showGrid) {
+            if (!this.gridBuffer) this._buildGrid();
+            gl.useProgram(this.wireProgram);
+            gl.uniformMatrix4fv(this.wireLocs.uProjection, false, proj);
+            gl.uniformMatrix4fv(this.wireLocs.uView, false, view);
+            gl.uniformMatrix4fv(this.wireLocs.uModel, false, model);
+
+            this._bindAttrib(this.wireLocs.aPosition, this.gridBuffer.position, 3);
+
+            // X axis (red-ish)
+            gl.uniform4f(this.wireLocs.uColor, 0.8, 0.3, 0.3, 0.5);
+            gl.drawArrays(gl.LINES, 0, 2); // First line is X axis
+
+            // Z axis (blue-ish)
+            gl.uniform4f(this.wireLocs.uColor, 0.3, 0.3, 0.8, 0.5);
+            gl.drawArrays(gl.LINES, 2, 2); // Second line is Z axis
+
+            // Rest of grid (grey)
+            gl.uniform4f(this.wireLocs.uColor, 0.4, 0.4, 0.4, 0.3);
+            gl.drawArrays(gl.LINES, 4, this.gridBuffer.lineCount - 4);
+        }
+
+        // Backface culling
+        if (this.backfaceCull) {
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(gl.BACK);
+        } else {
+            gl.disable(gl.CULL_FACE);
+        }
 
         // Shaded pass
         if (this.showTexture || !this.showWireframe) {
@@ -872,6 +986,49 @@ class PDSRenderer {
                 gl.drawArrays(gl.LINE_STRIP, 0, this.boneBuffers.pointCount);
             }
         }
+
+        // Bounding Boxes
+        if (this.showBBoxes && this.bboxBuffers) {
+            gl.useProgram(this.wireProgram);
+            gl.uniformMatrix4fv(this.wireLocs.uProjection, false, proj);
+            gl.uniformMatrix4fv(this.wireLocs.uView, false, view);
+            gl.uniformMatrix4fv(this.wireLocs.uModel, false, model);
+            gl.uniform4f(this.wireLocs.uColor, 1.0, 1.0, 0.0, 0.5); // Yellow
+
+            this._bindAttrib(this.wireLocs.aPosition, this.bboxBuffers.position, 3);
+            gl.drawArrays(gl.LINES, 0, this.bboxBuffers.lineCount);
+        }
+    }
+
+    /**
+     * Project a 3D point to screen coordinates.
+     * @param {Object} p - {x, y, z}
+     * @returns {Object|null} {x, y} in pixels (relative to canvas), or null if behind camera
+     */
+    projectPoint(p) {
+        const w = this.canvas.width / window.devicePixelRatio;
+        const h = this.canvas.height / window.devicePixelRatio;
+        const aspect = this.canvas.width / this.canvas.height;
+
+        const proj = mat4_perspective(45 * Math.PI / 180, aspect, 0.1, this.cameraDistance * 10);
+        const view = mat4_lookAt(this.cameraDistance, this.cameraRotX, this.cameraRotY,
+            this.cameraPanX, this.cameraPanY);
+
+        // Model is identity
+        const v = [p.x, p.y, p.z, 1.0];
+
+        // Clip space
+        const viewPos = mat4_transformVec4(view, v);
+        const clipPos = mat4_transformVec4(proj, viewPos);
+
+        if (clipPos[3] <= 0) return null; // Behind camera
+
+        const ndc = [clipPos[0] / clipPos[3], clipPos[1] / clipPos[3], clipPos[2] / clipPos[3]];
+
+        return {
+            x: (ndc[0] * 0.5 + 0.5) * w,
+            y: (1.0 - (ndc[1] * 0.5 + 0.5)) * h
+        };
     }
 
     _bindAttrib(loc, buffer, size) {
@@ -880,6 +1037,63 @@ class PDSRenderer {
         gl.enableVertexAttribArray(loc);
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+    }
+
+    _buildGrid() {
+        const gl = this.gl;
+        const size = Math.max(500, this.cameraDistance * 3.0);
+        const step = Math.pow(10, Math.floor(Math.log10(size / 10)));
+        const lines = [];
+        const halfSize = Math.floor(size / step) * step;
+        const y = -20;
+
+        for (let i = -halfSize; i <= halfSize; i += step) {
+            // X-axis lines (along Z)
+            lines.push(i, y, -halfSize, i, y, halfSize);
+            // Z-axis lines (along X)
+            lines.push(-halfSize, y, i, halfSize, y, i);
+        }
+
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.STATIC_DRAW);
+        this.gridBuffer = { position: buf, lineCount: lines.length / 3 };
+    }
+
+    _buildAtlasBuffer() {
+        // Full quad -1..1
+        const pos = [
+            -1, -1, 0, 1, -1, 0, 1, 1, 0,
+            -1, -1, 0, 1, 1, 0, -1, 1, 0
+        ];
+        const uv = [
+            0, 1, 1, 1, 1, 0,
+            0, 1, 1, 0, 0, 0
+        ];
+        // Normal Z+
+        const norm = Array(18).fill(0).map((_, i) => i % 3 === 2 ? 1 : 0);
+        const col = Array(24).fill(1); // White
+
+        this.atlasBuffer = {
+            position: this._createBuffer(new Float32Array(pos)),
+            texCoord: this._createBuffer(new Float32Array(uv)),
+            normal: this._createBuffer(new Float32Array(norm)),
+            color: this._createBuffer(new Float32Array(col))
+        };
+    }
+
+    /**
+     * Get bone world positions for overlays (labels, bboxes).
+     * @returns {Array} Array of {x, y, z} per bone in world space
+     */
+    getBoneWorldPositions() {
+        if (!this.boneBuffers || !this.boneBuffers._rawPositions) return [];
+        const raw = this.boneBuffers._rawPositions;
+        const positions = [];
+        for (let i = 0; i < raw.length; i += 3) {
+            positions.push({ x: raw[i], y: raw[i + 1], z: raw[i + 2] });
+        }
+        return positions;
     }
 
     resize(w, h) {
@@ -963,6 +1177,15 @@ function mat4_perspective(fov, aspect, near, far) {
         0, 0, (far + near) * nf, -1,
         0, 0, 2 * far * near * nf, 0,
     ]);
+}
+
+function mat4_transformVec4(m, v) {
+    return [
+        m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12] * v[3],
+        m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13] * v[3],
+        m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14] * v[3],
+        m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15] * v[3],
+    ];
 }
 
 function mat4_lookAt(dist, rotX, rotY, panX, panY) {

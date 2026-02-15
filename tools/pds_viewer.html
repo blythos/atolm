@@ -220,7 +220,19 @@
     #viewport {
       flex: 1;
       position: relative;
+      background: #09090c;
       overflow: hidden;
+    }
+
+    #overlay-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
     }
 
     #glcanvas {
@@ -406,10 +418,15 @@
         <button class="btn active" id="btn-textured" onclick="toggleView('textured')">Textured</button>
         <button class="btn" id="btn-wireframe" onclick="toggleView('wireframe')">Wireframe</button>
         <button class="btn" id="btn-bones" onclick="toggleView('bones')">Bones</button>
+        <button class="btn active" id="btn-grid" onclick="toggleGrid()">Grid</button>
+        <button class="btn" id="btn-bbox" onclick="toggleBBox()">BBox</button>
+        <button class="btn" id="btn-labels" onclick="toggleLabels()">Labels</button>
+        <button class="btn" id="btn-atlas" onclick="toggleAtlas()">Atlas</button>
       </div>
       <div class="toolbar-group">
         <span class="toolbar-label">Camera</span>
         <button class="btn btn-icon" onclick="resetCamera()" title="Reset Camera">⌂</button>
+        <button class="btn" id="btn-cull" onclick="toggleBackfaceCull()" title="Toggle Backface Culling">Cull</button>
       </div>
       <div class="toolbar-group">
         <button class="btn" id="btn-info" onclick="toggleInfoPanel()">Info</button>
@@ -418,6 +435,7 @@
 
     <!-- Viewport -->
     <div id="viewport">
+      <div id="overlay-container"></div>
       <canvas id="glcanvas"></canvas>
       <div id="empty-state">
         <div class="icon">◇</div>
@@ -472,6 +490,7 @@
     let renderer = null;
     let animController = null;
     let currentModelName = null;
+    let showLabels = false;
     let currentStructure = null;
     let currentMCB = null;
     let currentCGB = null;
@@ -743,9 +762,58 @@
       }
     }
 
+    function toggleGrid() {
+      renderer.showGrid = !renderer.showGrid;
+      document.getElementById('btn-grid').classList.toggle('active', renderer.showGrid);
+    }
+
+    function toggleBBox() {
+      renderer.showBBoxes = !renderer.showBBoxes;
+      document.getElementById('btn-bbox').classList.toggle('active', renderer.showBBoxes);
+      updateRendererPose(); // Re-render to update
+    }
+
+    function toggleLabels() {
+      showLabels = !showLabels;
+      document.getElementById('btn-labels').classList.toggle('active', showLabels);
+      document.getElementById('overlay-container').innerHTML = '';
+    }
+
+    function toggleAtlas() {
+      renderer.showAtlas = !renderer.showAtlas;
+      document.getElementById('btn-atlas').classList.toggle('active', renderer.showAtlas);
+    }
+
+    function updateOverlays() {
+      if (!showLabels || !renderer || !animController) return;
+
+      const container = document.getElementById('overlay-container');
+      const positions = renderer.getBoneWorldPositions();
+
+      // Simple clear/redraw (optimize later if needed)
+      container.innerHTML = '';
+
+      positions.forEach((p, i) => {
+        const s = renderer.projectPoint(p);
+        if (s) {
+          const el = document.createElement('div');
+          el.className = 'bone-label';
+          el.textContent = i;
+          el.style.left = s.x + 'px';
+          el.style.top = s.y + 'px';
+          container.appendChild(el);
+        }
+      });
+    }
+
+    function toggleBackfaceCull() {
+      renderer.backfaceCull = !renderer.backfaceCull;
+      document.getElementById('btn-cull').classList.toggle('active', renderer.backfaceCull);
+    }
+
     function resetCamera() {
       renderer.cameraRotX = 0.3;
-      renderer.cameraRotY = 0;
+      renderer.cameraRotY = -0.4;
       renderer.cameraPanX = 0;
       renderer.cameraPanY = 0;
       if (renderer.currentModels) {
@@ -781,10 +849,19 @@
 
       const ptrInfo = document.getElementById('info-ptr-data');
       const counts = s.typeCounts || {};
-      ptrInfo.innerHTML = Object.entries(counts)
+      let html = Object.entries(counts)
         .filter(([k]) => k !== 'zero')
         .map(([k, v]) => `<div class="info-row"><span class="label">${k}</span><span class="value">${v}</span></div>`)
         .join('');
+
+      // Add detailed offsets
+      html += '<h4>Hex Offsets</h4>';
+      html += s.pointerTable.map(p => {
+        if (p.type === 'zero') return '';
+        return `<div class="info-row"><span class="label">${p.type} ${p.slot}</span><span class="value">0x${p.offset.toString(16).toUpperCase()}</span></div>`;
+      }).join('');
+
+      ptrInfo.innerHTML = html;
     }
 
     function updateAnimInfo(idx) {
@@ -878,7 +955,10 @@
         updateFrameDisplay();
       }
 
-      renderer.render();
+      if (renderer) {
+        renderer.render();
+        updateOverlays();
+      }
     }
 
     // ── Keyboard Shortcuts ─────────────────────────────────────────────────────

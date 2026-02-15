@@ -111,23 +111,27 @@ python3 pds_extract.py disc.bin --extract-all -o output/ -v
 A single HTML file using Three.js. Place it alongside the extracted JSON/PNG files and serve via any HTTP server.
 
 **Features:**
-- Categorised asset browser (Dragons, Characters, NPCs, Fields, Maps, Other)
-- Textured quad rendering with all Saturn colour modes (LUT, RGB555, bank greyscale fallback)
-- Skeletal hierarchy with correct transforms
-- Animation playback with frame scrubbing
-- Orbit camera (left-drag rotate, right-drag pan, scroll zoom)
+- **Categorised Asset Browser**: Dragons, Characters, NPCs, Fields, Maps, Objects, Overworld.
+- **Advanced Rendering**: Textured quad rendering with all Saturn colour modes (LUT, RGB555, bank greyscale fallback).
+- **Inspection Tools**:
+  - **Grid**: 3D floor grid for scale reference.
+  - **BBox**: Per-bone bounding box wireframes.
+  - **Labels**: Bone index overlay for mapping hierarchy to geometry.
+  - **Atlas**: Full-screen texture sheet viewer.
+  - **Hex Offsets**: Hexadecimal file offsets for all assets in the Info Panel.
+- **Animation Playback**: Faithful replication of the Saturn animation state machine.
 
 ### Animation System
 
-The viewer's animation engine is a faithful port of yaz0r's Azel decompilation:
+The viewer's animation engine is a **direct port of the original Saturn logic**, reverse-engineered by **yaz0r** (from the Azel decompilation project). This ensures 1:1 accuracy with the game's movement:
 
-- **Mode 0**: Direct per-frame values from track arrays
-- **Mode 1**: `stepAnimationTrack` with per-frame accumulation  
-- **Mode 4**: Every-2-frame keyframes with half-step interpolation
-- **Mode 5**: Every-4-frame keyframes with quarter-step interpolation
+- **Mode 0**: Direct per-frame values.
+- **Mode 1**: Accumulated values with variable-length encoding.
+- **Mode 2/3**: Spline interpolation (used for camera paths).
+- **Mode 4**: Keyframes every 2 frames with half-step linear interpolation.
+- **Mode 5**: Keyframes every 4 frames with quarter-step interpolation.
 
-The `stepAnimationTrack` function implements the Saturn's RLE-like track format:
-track values encode both a delay (low 4 bits) and a value (high 12 bits, sign-extended).
+The custom `stepAnimationTrack` logic handles the Saturn's specific RLE-like compressed track format, where values encode both a delay (low 4 bits) and a delta (high 12 bits).
 
 ## Known Limitations
 
