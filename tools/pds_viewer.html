@@ -1,1230 +1,923 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Panzer Dragoon Saga — Model Viewer</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDS Model Viewer</title>
+  <meta name="description" content="Panzer Dragoon Saga Model Viewer — Raw MCB/CGB data viewer">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0a0a0f;
+      --bg-panel: #111118;
+      --bg-card: #1a1a24;
+      --bg-hover: #22223a;
+      --bg-active: #2a2a4a;
+      --border: #2a2a3a;
+      --border-bright: #3a3a5a;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888aa;
+      --text-dim: #555577;
+      --accent: #6c8cff;
+      --accent-glow: #4a6aff;
+      --accent-subtle: #2a3a6a;
+      --green: #5ce0a0;
+      --red: #ff6b6b;
+      --orange: #ffaa44;
+      --cyan: #44ddee;
+    }
 
-  :root {
-    --bg: #0a0a0c;
-    --panel: #111114;
-    --panel-border: #1e1e24;
-    --text: #c8c8d0;
-    --text-dim: #6e6e7a;
-    --text-bright: #e8e8f0;
-    --accent: #4a9eff;
-    --accent-dim: #2a5a9a;
-    --accent-glow: rgba(74, 158, 255, 0.15);
-    --warn: #ff9040;
-    --success: #40c070;
-  }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Instrument Sans', sans-serif;
-    overflow: hidden;
-    height: 100vh;
-  }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
 
-  #canvas-container {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-  }
+    /* ── Left Panel: Model Browser ── */
+    #sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
 
-  canvas { display: block; }
+    #sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
 
-  /* ─── Top Bar ─── */
-  #top-bar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 48px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--panel-border);
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    z-index: 10;
-    gap: 16px;
-  }
+    #sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
 
-  #top-bar .logo {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--accent);
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-  }
+    #sidebar-header p {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
 
-  #top-bar .logo span {
-    color: var(--text-dim);
-    font-weight: 300;
-  }
+    #search-box {
+      margin: 12px 16px 8px;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      width: calc(100% - 32px);
+    }
 
-  #top-bar .divider {
-    width: 1px;
-    height: 24px;
-    background: var(--panel-border);
-  }
+    #search-box:focus {
+      border-color: var(--accent);
+    }
 
-  /* ─── File Selector ─── */
-  #file-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+    #search-box::placeholder {
+      color: var(--text-dim);
+    }
 
-  #file-selector label {
-    font-size: 11px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 500;
-  }
+    #model-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
 
-  #file-select {
-    background: var(--bg);
-    color: var(--text-bright);
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-  }
+    .category-header {
+      padding: 8px 16px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      position: sticky;
+      top: 0;
+      background: var(--bg-panel);
+    }
 
-  #file-select:hover { border-color: var(--accent-dim); }
-  #file-select:focus { border-color: var(--accent); }
+    .model-item {
+      padding: 6px 16px 6px 24px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
 
-  /* ─── Hierarchy Selector ─── */
-  #hier-select {
-    background: var(--bg);
-    color: var(--text-bright);
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-  }
+    .model-item:hover {
+      background: var(--bg-hover);
+    }
 
-  /* ─── Stats ─── */
-  #stats-bar {
-    margin-left: auto;
-    display: flex;
-    gap: 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
+    .model-item.active {
+      background: var(--bg-active);
+      color: var(--accent);
+    }
 
-  #stats-bar .stat-val { color: var(--text-bright); }
+    .model-item .name {
+      font-weight: 500;
+    }
 
-  /* ─── Side Panel ─── */
-  #side-panel {
-    position: absolute;
-    top: 48px;
-    right: 0;
-    bottom: 0;
-    width: 280px;
-    background: var(--panel);
-    border-left: 1px solid var(--panel-border);
-    z-index: 10;
-    overflow-y: auto;
-    padding: 12px;
-    transition: transform 0.2s ease;
-  }
+    .model-item .stats {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-  #side-panel.collapsed { transform: translateX(280px); }
+    /* ── Main Area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
 
-  #panel-toggle {
-    position: absolute;
-    top: 56px;
-    right: 280px;
-    z-index: 11;
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-right: none;
-    border-radius: 4px 0 0 4px;
-    color: var(--text-dim);
-    padding: 8px 6px;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    transition: right 0.2s ease;
-  }
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      min-height: 44px;
+    }
 
-  #panel-toggle.collapsed { right: 0; }
-  #panel-toggle:hover { color: var(--text-bright); }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 8px;
+      border-right: 1px solid var(--border);
+    }
 
-  .panel-section {
-    margin-bottom: 16px;
-  }
+    .toolbar-group:last-child {
+      border-right: none;
+    }
 
-  .panel-section h3 {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
+    .toolbar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 4px;
+    }
 
-  /* ─── Bone Tree ─── */
-  .bone-tree {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    line-height: 1.8;
-  }
+    .btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 500;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
 
-  .bone-node {
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
+    .btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-bright);
+    }
 
-  .bone-node:hover { background: rgba(255,255,255,0.04); }
-  .bone-node.active { background: var(--accent-glow); color: var(--accent); }
-  
-  .bone-node .bone-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    flex-shrink: 0;
-  }
-  
-  .bone-node.active .bone-dot { background: var(--accent); }
-  .bone-node.has-model .bone-dot { background: var(--success); }
+    .btn.active {
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
 
-  /* ─── Controls ─── */
-  .control-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    font-size: 12px;
-  }
+    .btn-icon {
+      width: 30px;
+      padding: 5px;
+      text-align: center;
+      font-size: 14px;
+    }
 
-  .control-row label {
-    color: var(--text-dim);
-    font-size: 11px;
-  }
+    /* ── Canvas ── */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
 
-  .toggle {
-    position: relative;
-    width: 32px;
-    height: 18px;
-    background: var(--bg);
-    border: 1px solid var(--panel-border);
-    border-radius: 9px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
+    #glcanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
 
-  .toggle.on { background: var(--accent-dim); border-color: var(--accent); }
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.85);
+      z-index: 10;
+    }
 
-  .toggle::after {
-    content: '';
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 12px; height: 12px;
-    background: var(--text-dim);
-    border-radius: 50%;
-    transition: transform 0.2s, background 0.2s;
-  }
+    #loading-overlay .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
 
-  .toggle.on::after { transform: translateX(14px); background: var(--accent); }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
-  /* ─── File Drop ─── */
-  #drop-overlay {
-    display: none;
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 12px;
-  }
+    #empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      gap: 8px;
+    }
 
-  #drop-overlay.active { display: flex; }
-  
-  #drop-overlay .drop-icon {
-    font-size: 48px;
-    color: var(--accent);
-    opacity: 0.6;
-  }
+    #empty-state .icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
 
-  #drop-overlay p {
-    color: var(--text-dim);
-    font-size: 14px;
-  }
+    #empty-state p {
+      font-size: 13px;
+    }
 
-  /* ─── Loading ─── */
-  #loading {
-    display: none;
-    position: absolute;
-    inset: 0;
-    background: rgba(10,10,12,0.9);
-    z-index: 50;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 8px;
-  }
+    /* ── Bottom Bar: Animation Controls ── */
+    #anim-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      min-height: 44px;
+    }
 
-  #loading.active { display: flex; }
+    #anim-select {
+      padding: 5px 8px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 11px;
+      min-width: 180px;
+    }
 
-  #loading .spinner {
-    width: 32px; height: 32px;
-    border: 2px solid var(--panel-border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+    #frame-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      min-width: 100px;
+      text-align: right;
+    }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+    #speed-slider {
+      width: 80px;
+      accent-color: var(--accent);
+    }
 
-  #loading p { color: var(--text-dim); font-size: 13px; }
+    #speed-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      min-width: 35px;
+    }
 
-  /* ─── Welcome ─── */
-  #welcome {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-    pointer-events: none;
-  }
+    /* ── Right Panel: Info ── */
+    #info-panel {
+      width: 240px;
+      min-width: 240px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: none;
+    }
 
-  #welcome h2 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 16px;
-    color: var(--text-dim);
-    font-weight: 400;
-  }
+    #info-panel.visible {
+      display: block;
+    }
 
-  #welcome p {
-    color: var(--text-dim);
-    font-size: 12px;
-    opacity: 0.6;
-  }
+    .info-section {
+      margin-bottom: 16px;
+    }
 
-  /* ─── Scrollbar ─── */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
-</style>
+    .info-section h3 {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 3px 0;
+    }
+
+    .info-row .label {
+      color: var(--text-secondary);
+    }
+
+    .info-row .value {
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    /* ── Scrollbar Styling ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-bright);
+    }
+
+    /* ── Hidden ── */
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="top-bar">
-  <div class="logo">PDS<span>.VIEWER</span></div>
-  <div class="divider"></div>
-  <div id="file-selector">
-    <label>Model</label>
-    <select id="file-select"><option value="">— load JSON —</option></select>
-    <select id="hier-select" style="display:none"><option value="">hierarchy</option></select>
-  </div>
-  <div id="stats-bar">
-    <span>Quads: <span class="stat-val" id="stat-quads">0</span></span>
-    <span>Verts: <span class="stat-val" id="stat-verts">0</span></span>
-    <span>Bones: <span class="stat-val" id="stat-bones">0</span></span>
-    <span>Textures: <span class="stat-val" id="stat-textures">0</span></span>
-  </div>
-</div>
-
-<button id="panel-toggle">◀</button>
-
-<div id="side-panel">
-  <div class="panel-section">
-    <h3>Display</h3>
-    <div class="control-row">
-      <label>Wireframe</label>
-      <div class="toggle" id="toggle-wireframe" onclick="toggleControl(this, 'wireframe')"></div>
+  <!-- Left Panel: Model Browser -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>PDS Model Viewer</h1>
+      <p id="model-count">Loading manifest...</p>
     </div>
-    <div class="control-row">
-      <label>Textures</label>
-      <div class="toggle on" id="toggle-textures" onclick="toggleControl(this, 'textures')"></div>
-    </div>
-    <div class="control-row">
-      <label>Bones</label>
-      <div class="toggle" id="toggle-bones" onclick="toggleControl(this, 'showBones')"></div>
-    </div>
-    <div class="control-row">
-      <label>Backfaces</label>
-      <div class="toggle" id="toggle-backface" onclick="toggleControl(this, 'backfaces')"></div>
-    </div>
-    <div class="control-row">
-      <label>Grid</label>
-      <div class="toggle on" id="toggle-grid" onclick="toggleControl(this, 'grid')"></div>
-    </div>
+    <input type="text" id="search-box" placeholder="Search models...">
+    <div id="model-list"></div>
   </div>
 
-  <div class="panel-section">
-    <h3>Bone Hierarchy</h3>
-    <div id="bone-tree" class="bone-tree"></div>
+  <!-- Main Area -->
+  <div id="main">
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <div class="toolbar-group">
+        <span class="toolbar-label">View</span>
+        <button class="btn active" id="btn-textured" onclick="toggleView('textured')">Textured</button>
+        <button class="btn" id="btn-wireframe" onclick="toggleView('wireframe')">Wireframe</button>
+        <button class="btn" id="btn-bones" onclick="toggleView('bones')">Bones</button>
+      </div>
+      <div class="toolbar-group">
+        <span class="toolbar-label">Camera</span>
+        <button class="btn btn-icon" onclick="resetCamera()" title="Reset Camera">⌂</button>
+      </div>
+      <div class="toolbar-group">
+        <button class="btn" id="btn-info" onclick="toggleInfoPanel()">Info</button>
+      </div>
+    </div>
+
+    <!-- Viewport -->
+    <div id="viewport">
+      <canvas id="glcanvas"></canvas>
+      <div id="empty-state">
+        <div class="icon">◇</div>
+        <p>Select a model to view</p>
+      </div>
+      <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Animation Bar -->
+    <div id="anim-bar">
+      <select id="anim-select" onchange="selectAnimation(this.value)">
+        <option value="-1">No animation</option>
+      </select>
+      <button class="btn btn-icon" onclick="stepBack()" title="Step Back">⏮</button>
+      <button class="btn btn-icon" id="btn-play" onclick="togglePlay()" title="Play/Pause">▶</button>
+      <button class="btn btn-icon" onclick="stepForward()" title="Step Forward">⏭</button>
+      <span id="frame-display">Frame: 0 / 0</span>
+      <div style="flex:1"></div>
+      <span id="speed-label">1.0×</span>
+      <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1" oninput="setSpeed(this.value)">
+    </div>
   </div>
-</div>
 
-<div id="canvas-container"></div>
+  <!-- Right Panel: Info -->
+  <div id="info-panel">
+    <div class="info-section">
+      <h3>Model Info</h3>
+      <div id="info-model-data"></div>
+    </div>
+    <div class="info-section">
+      <h3>Pointer Table</h3>
+      <div id="info-ptr-data"></div>
+    </div>
+    <div class="info-section">
+      <h3>Animation</h3>
+      <div id="info-anim-data"></div>
+    </div>
+  </div>
 
-<div id="loading"><div class="spinner"></div><p id="loading-text">Loading...</p></div>
+  <!-- Scripts -->
+  <script src="viewer_animation.js"></script>
+  <script src="viewer_renderer.js"></script>
+  <script>
 
-<div id="welcome">
-  <h2>Drop a .json model file or select from the list</h2>
-  <p>Extracted with pds_extract.py — quad topology preserved</p>
-</div>
+    // ── Configuration ──────────────────────────────────────────────────────────
+    const DATA_BASE = '../output/raw';
 
-<div id="drop-overlay">
-  <div class="drop-icon">⬇</div>
-  <p>Drop .json model file</p>
-</div>
+    // ── State ──────────────────────────────────────────────────────────────────
+    let manifest = null;
+    let renderer = null;
+    let animController = null;
+    let currentModelName = null;
+    let currentStructure = null;
+    let currentMCB = null;
+    let currentCGB = null;
+    let animations = [];
+    let animFrameId = null;
+    let playbackSpeed = 1.0;
+    let lastFrameTime = 0;
+    let frameAccumulator = 0;
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-// ─── State ───
-const state = {
-  wireframe: false,
-  textures: true,
-  showBones: false,
-  backfaces: false,
-  grid: true,
-  currentData: null,
-  currentHierarchy: 0,
-  modelGroup: null,
-  boneHelpers: null,
-  textureCache: {},
-};
+    // ── Initialization ─────────────────────────────────────────────────────────
 
-// ─── Three.js Setup ───
-const container = document.getElementById('canvas-container');
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0c);
+    async function init() {
+      // Init renderer (non-fatal — sidebar should still work without WebGL)
+      const canvas = document.getElementById('glcanvas');
+      try {
+        renderer = new (window.PDSRenderer.PDSRenderer)(canvas);
+        resizeCanvas();
+        setupMouseControls(canvas);
+      } catch (e) {
+        console.warn('WebGL renderer init failed:', e.message);
+        document.getElementById('empty-state').innerHTML =
+          '<div class="icon">⚠</div><p>WebGL not available — model list still works</p>';
+      }
+      window.addEventListener('resize', resizeCanvas);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
-camera.position.set(0, 2, 5);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
-
-// Lighting
-const ambientLight = new THREE.AmbientLight(0x404050, 0.8);
-scene.add(ambientLight);
-
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-dirLight.position.set(3, 5, 4);
-scene.add(dirLight);
-
-const fillLight = new THREE.DirectionalLight(0x4060a0, 0.4);
-fillLight.position.set(-3, 1, -2);
-scene.add(fillLight);
-
-// Grid
-const gridHelper = new THREE.GridHelper(20, 40, 0x1a1a22, 0x12121a);
-scene.add(gridHelper);
-
-// Axes
-const axesHelper = new THREE.AxesHelper(0.5);
-scene.add(axesHelper);
-
-// ─── Orbit Controls (manual implementation) ───
-let orbiting = false, panning = false;
-let orbitTheta = 0, orbitPhi = Math.PI / 6;
-let orbitRadius = 5;
-let orbitTarget = new THREE.Vector3(0, 0.5, 0);
-let mouseStart = { x: 0, y: 0 };
-
-function updateCamera() {
-  const x = orbitTarget.x + orbitRadius * Math.sin(orbitTheta) * Math.cos(orbitPhi);
-  const y = orbitTarget.y + orbitRadius * Math.sin(orbitPhi);
-  const z = orbitTarget.z + orbitRadius * Math.cos(orbitTheta) * Math.cos(orbitPhi);
-  camera.position.set(x, y, z);
-  camera.lookAt(orbitTarget);
-}
-
-renderer.domElement.addEventListener('mousedown', (e) => {
-  if (e.button === 0) orbiting = true;
-  if (e.button === 2 || e.button === 1) panning = true;
-  mouseStart = { x: e.clientX, y: e.clientY };
-  e.preventDefault();
-});
-
-window.addEventListener('mouseup', () => { orbiting = false; panning = false; });
-window.addEventListener('contextmenu', (e) => e.preventDefault());
-
-window.addEventListener('mousemove', (e) => {
-  const dx = e.clientX - mouseStart.x;
-  const dy = e.clientY - mouseStart.y;
-  mouseStart = { x: e.clientX, y: e.clientY };
-
-  if (orbiting) {
-    orbitTheta -= dx * 0.005;
-    orbitPhi = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, orbitPhi + dy * 0.005));
-    updateCamera();
-  }
-  if (panning) {
-    const panSpeed = orbitRadius * 0.002;
-    const right = new THREE.Vector3();
-    const up = new THREE.Vector3();
-    camera.getWorldDirection(up);
-    right.crossVectors(up, camera.up).normalize();
-    up.copy(camera.up).normalize();
-    orbitTarget.add(right.multiplyScalar(-dx * panSpeed));
-    orbitTarget.add(up.multiplyScalar(dy * panSpeed));
-    updateCamera();
-  }
-});
-
-renderer.domElement.addEventListener('wheel', (e) => {
-  orbitRadius *= (1 + e.deltaY * 0.001);
-  orbitRadius = Math.max(0.1, Math.min(100, orbitRadius));
-  updateCamera();
-  e.preventDefault();
-}, { passive: false });
-
-updateCamera();
-
-// ─── Texture Loading ───
-function loadTexture(texData) {
-  const key = texData.dataUrl.substring(0, 60); // Use prefix as cache key
-  if (state.textureCache[key]) return state.textureCache[key];
-
-  const tex = new THREE.TextureLoader().load(texData.dataUrl);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.wrapS = THREE.ClampToEdgeWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.flipY = false; // Saturn textures are top-down
-  state.textureCache[key] = tex;
-  return tex;
-}
-
-// ─── Quad Mesh Builder ───
-// Renders quads as two triangles (0,1,2) and (0,2,3) with proper UV mapping
-// This preserves the quad topology in the data while rendering correctly
-
-function buildModelMesh(model, textures, parentMatrix) {
-  const group = new THREE.Group();
-  if (parentMatrix) group.applyMatrix4(parentMatrix);
-
-  const verts = model.vertices;
-
-  // Group quads by texture for batching
-  const quadsByTex = {};
-  for (const quad of model.quads) {
-    const key = quad.textureKey || '__notex__';
-    if (!quadsByTex[key]) quadsByTex[key] = [];
-    quadsByTex[key].push(quad);
-  }
-
-  for (const [texKey, quads] of Object.entries(quadsByTex)) {
-    const positions = [];
-    const uvs = [];
-    const indices = [];
-
-    for (const quad of quads) {
-      const [a, b, c, d] = quad.indices;
-      const baseIdx = positions.length / 3;
-
-      // Add 4 vertices for this quad
-      for (const vi of [a, b, c, d]) {
-        const v = verts[vi];
-        // Convert to viewer coords: Saturn Y-up, negate Z for right-hand
-        positions.push(v[0], v[1], -v[2]);
+      // Load manifest
+      try {
+        const resp = await fetch(`${DATA_BASE}/manifest.json`);
+        manifest = await resp.json();
+        buildModelList();
+        document.getElementById('model-count').textContent =
+          `${manifest.models.length} models · ${manifest.credits ? 'Azel ♥' : ''}`;
+      } catch (e) {
+        document.getElementById('model-count').textContent = 'Failed to load manifest';
+        console.error('Manifest load failed:', e);
       }
 
-      // UV mapping for quad: maps texture to four corners
-      // VDP1 maps texture: A=top-left, B=top-right, C=bottom-right, D=bottom-left
-      let u0 = 0, v0 = 0, u1 = 1, v1 = 1;
-
-      // Apply texture flip
-      if (quad.flipH) { const tmp = u0; u0 = u1; u1 = tmp; }
-      if (quad.flipV) { const tmp = v0; v0 = v1; v1 = tmp; }
-
-      uvs.push(u0, v0);  // A: top-left
-      uvs.push(u1, v0);  // B: top-right
-      uvs.push(u1, v1);  // C: bottom-right
-      uvs.push(u0, v1);  // D: bottom-left
-
-      // Two triangles: ABC and ACD
-      indices.push(baseIdx, baseIdx + 1, baseIdx + 2);
-      indices.push(baseIdx, baseIdx + 2, baseIdx + 3);
+      if (renderer) renderLoop();
     }
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+    function resizeCanvas() {
+      const canvas = document.getElementById('glcanvas');
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      if (renderer) {
+        renderer.resize(canvas.width, canvas.height);
+      }
+    }
 
-    let material;
-    const texData = textures[texKey];
+    // ── Model List ─────────────────────────────────────────────────────────────
 
-    if (state.textures && texData && texData.dataUrl) {
-      const tex = loadTexture(texData);
-      material = new THREE.MeshPhongMaterial({
-        map: tex,
-        side: state.backfaces ? THREE.DoubleSide : THREE.FrontSide,
-        transparent: true,
-        alphaTest: 0.1,
-        wireframe: state.wireframe,
-      });
-    } else {
-      material = new THREE.MeshPhongMaterial({
-        color: 0x808090,
-        side: state.backfaces ? THREE.DoubleSide : THREE.FrontSide,
-        wireframe: state.wireframe,
+    function buildModelList() {
+      const list = document.getElementById('model-list');
+      list.innerHTML = '';
+
+      const categories = manifest.categories;
+      const catOrder = ['Dragons', 'Characters', 'NPCs', 'Fields', 'Maps', 'Objects', 'Overworld', 'Other'];
+
+      for (const cat of catOrder) {
+        if (!categories[cat] || categories[cat].length === 0) continue;
+
+        const header = document.createElement('div');
+        header.className = 'category-header';
+        header.textContent = `${cat} (${categories[cat].length})`;
+        list.appendChild(header);
+
+        for (const name of categories[cat].sort()) {
+          const entry = manifest.models.find(m => m.name === name);
+          const item = document.createElement('div');
+          item.className = 'model-item';
+          item.dataset.name = name;
+          item.innerHTML = `
+                <span class="name">${name}</span>
+                <span class="stats">${entry?.animations || 0}a</span>
+            `;
+          item.onclick = () => loadModel(name);
+          list.appendChild(item);
+        }
+      }
+    }
+
+    function filterModelList(query) {
+      const items = document.querySelectorAll('.model-item');
+      const headers = document.querySelectorAll('.category-header');
+      const q = query.toLowerCase();
+
+      headers.forEach(h => h.style.display = q ? 'none' : '');
+      items.forEach(item => {
+        const name = item.dataset.name.toLowerCase();
+        item.style.display = name.includes(q) ? '' : 'none';
       });
     }
 
-    const mesh = new THREE.Mesh(geometry, material);
-    group.add(mesh);
-  }
+    document.getElementById('search-box').addEventListener('input', e => filterModelList(e.target.value));
 
-  return group;
-}
+    // ── Model Loading ──────────────────────────────────────────────────────────
 
-// ─── Hierarchy Builder ───
-// Walks the bone tree, applying transforms from pose data
+    async function loadModel(name) {
+      // Update UI
+      document.querySelectorAll('.model-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.name === name);
+      });
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('loading-overlay').classList.remove('hidden');
 
-function buildHierarchy(data, hierIndex) {
-  const hier = data.hierarchies[hierIndex];
-  if (!hier) return new THREE.Group();
+      currentModelName = name;
 
-  const pose = data.poses[hierIndex] || null;
-  const nodes = hier.nodes;
-  const textures = data.textures;
+      try {
+        // Fetch raw files
+        const [mcbResp, cgbResp, structResp] = await Promise.all([
+          fetch(`${DATA_BASE}/${name}.mcb.bin`),
+          fetch(`${DATA_BASE}/${name}.cgb.bin`).catch(() => null),
+          fetch(`${DATA_BASE}/${name}_structure.json`),
+        ]);
 
-  // Build offset -> node mapping
-  const nodeByOffset = {};
-  for (const node of nodes) {
-    nodeByOffset[node.offset] = node;
-  }
+        currentMCB = new Uint8Array(await mcbResp.arrayBuffer());
+        currentCGB = cgbResp ? new Uint8Array(await (cgbResp).arrayBuffer()) : new Uint8Array(0);
+        currentStructure = await structResp.json();
 
-  // Build offset -> model mapping
-  const offsetToModelKey = {};
-  for (const [key, model] of Object.entries(data.models)) {
-    const ptrEntry = data.pointerTable[parseInt(key)];
-    if (ptrEntry) {
-      offsetToModelKey[ptrEntry.offset] = key;
+        // Load into renderer
+        renderer.loadModel(currentMCB, currentCGB, currentStructure);
+
+        // Parse animations
+        animations = [];
+        for (const entry of currentStructure.pointerTable) {
+          if (entry.type === 'animation') {
+            const anim = window.PDSAnimation.parseAnimationData(currentMCB, entry.offset);
+            if (anim) {
+              animations.push({ slot: entry.slot, data: anim });
+            }
+          }
+        }
+
+        // Build animation dropdown
+        const select = document.getElementById('anim-select');
+        select.innerHTML = '<option value="-1">No animation</option>';
+        animations.forEach((a, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `Anim ${i} (slot ${a.slot}, ${a.data.numFrames}f, mode ${a.data.mode})`;
+          select.appendChild(opt);
+        });
+
+        // Setup animation controller
+        if (currentStructure.hierarchies.length > 0) {
+          const hier = currentStructure.hierarchies[0];
+          // Find first pose
+          let defaultPose = [];
+          for (const entry of currentStructure.pointerTable) {
+            if (entry.type === 'pose') {
+              defaultPose = window.PDSAnimation.parseStaticPose(currentMCB, entry.offset, hier.boneCount);
+              break;
+            }
+          }
+
+          animController = new (window.PDSAnimation.AnimationController)(hier.boneCount, defaultPose);
+
+          // Auto-play first animation
+          if (animations.length > 0) {
+            select.value = '0';
+            selectAnimation('0');
+          } else {
+            // Apply default pose
+            updateRendererPose();
+          }
+        } else {
+          animController = null;
+        }
+
+        updateInfoPanel();
+
+      } catch (e) {
+        console.error('Load failed:', e);
+      }
+
+      document.getElementById('loading-overlay').classList.add('hidden');
     }
-  }
 
-  const group = new THREE.Group();
-  const bonePositions = []; // For bone visualization
+    // ── Animation Controls ─────────────────────────────────────────────────────
 
-  let boneIndex = 0;
+    function selectAnimation(value) {
+      const idx = parseInt(value);
+      if (idx < 0 || idx >= animations.length || !animController) {
+        if (animController) {
+          animController.playing = false;
+          animController.currentAnimation = null;
+        }
+        document.getElementById('btn-play').textContent = '▶';
+        updateFrameDisplay();
+        return;
+      }
 
-  function walkNode(offset, parentGroup) {
-    const node = nodeByOffset[offset];
-    if (!node) return;
-
-    const boneGroup = new THREE.Group();
-    boneGroup.name = `bone_${boneIndex}`;
-
-    // Apply pose transform if available
-    if (pose && boneIndex < pose.bones.length) {
-      const bone = pose.bones[boneIndex];
-      
-      // Translation (already in world units from 16.16 fixed point)
-      boneGroup.position.set(
-        bone.translation[0],
-        bone.translation[1],
-        -bone.translation[2] // Negate Z for right-hand coords
-      );
-
-      // Rotation: Saturn uses ZYX order, angles in degrees (converted from 16.16 where 1.0 = 360°)
-      const toRad = Math.PI / 180;
-      const rx = bone.rotation[0] * toRad;
-      const ry = bone.rotation[1] * toRad;
-      const rz = bone.rotation[2] * toRad;
-
-      // Apply ZYX rotation order (Saturn convention)
-      const euler = new THREE.Euler(rx, -ry, -rz, 'ZYX');
-      boneGroup.rotation.copy(euler);
-
-      // Scale
-      boneGroup.scale.set(bone.scale[0], bone.scale[1], bone.scale[2]);
+      animController.setAnimation(animations[idx].data);
+      animController.loop = true;
+      document.getElementById('btn-play').textContent = '⏸';
+      updateRendererPose();
+      updateFrameDisplay();
+      updateAnimInfo(idx);
     }
 
-    boneIndex++;
+    function togglePlay() {
+      if (!animController || !animController.currentAnimation) return;
+      animController.playing = !animController.playing;
+      document.getElementById('btn-play').textContent = animController.playing ? '⏸' : '▶';
+    }
 
-    // Get world position for bone visualization
-    const worldPos = new THREE.Vector3();
-    parentGroup.updateWorldMatrix(true, false);
-    boneGroup.updateWorldMatrix(true, false);
+    function stepForward() {
+      if (!animController || !animController.currentAnimation) return;
+      animController.playing = false;
+      document.getElementById('btn-play').textContent = '▶';
+      animController.stepAnimation();
+      updateRendererPose();
+      updateFrameDisplay();
+    }
 
-    // Add model if this bone has one
-    if (node.modelOffset !== 0) {
-      const modelKey = offsetToModelKey[node.modelOffset];
-      if (modelKey && data.models[modelKey]) {
-        const modelMesh = buildModelMesh(data.models[modelKey], textures);
-        boneGroup.add(modelMesh);
+    function stepBack() {
+      if (!animController || !animController.currentAnimation) return;
+      // Reset and step to current frame - 1
+      const targetFrame = Math.max(0, animController.currentFrame - 2);
+      const animIdx = parseInt(document.getElementById('anim-select').value);
+      if (animIdx >= 0) {
+        animController.setAnimation(animations[animIdx].data);
+        for (let i = 0; i < targetFrame; i++) {
+          animController.stepAnimation();
+        }
+        animController.playing = false;
+        document.getElementById('btn-play').textContent = '▶';
+        updateRendererPose();
+        updateFrameDisplay();
       }
     }
 
-    parentGroup.add(boneGroup);
+    function setSpeed(value) {
+      playbackSpeed = parseFloat(value);
+      document.getElementById('speed-label').textContent = `${playbackSpeed.toFixed(1)}×`;
+    }
 
-    // Record bone position for helper
-    bonePositions.push({
-      group: boneGroup,
-      hasModel: node.modelOffset !== 0,
+    function updateFrameDisplay() {
+      const el = document.getElementById('frame-display');
+      if (!animController || !animController.currentAnimation) {
+        el.textContent = 'Frame: — / —';
+        return;
+      }
+      el.textContent = `Frame: ${animController.currentFrame} / ${animController.currentAnimation.numFrames}`;
+    }
+
+    function updateRendererPose() {
+      if (!animController || !renderer.currentHierarchy) return;
+      const pose = animController.getPoseForRendering();
+      renderer.buildAnimatedMeshBuffers(pose);
+    }
+
+    // ── View Controls ──────────────────────────────────────────────────────────
+
+    function toggleView(mode) {
+      if (mode === 'textured') {
+        renderer.showTexture = !renderer.showTexture;
+        document.getElementById('btn-textured').classList.toggle('active', renderer.showTexture);
+      } else if (mode === 'wireframe') {
+        renderer.showWireframe = !renderer.showWireframe;
+        document.getElementById('btn-wireframe').classList.toggle('active', renderer.showWireframe);
+      } else if (mode === 'bones') {
+        renderer.showBones = !renderer.showBones;
+        document.getElementById('btn-bones').classList.toggle('active', renderer.showBones);
+      }
+    }
+
+    function resetCamera() {
+      renderer.cameraRotX = 0.3;
+      renderer.cameraRotY = 0;
+      renderer.cameraPanX = 0;
+      renderer.cameraPanY = 0;
+      if (renderer.currentModels) {
+        const models = Object.values(renderer.currentModels);
+        renderer._autoFitCamera(models);
+      }
+    }
+
+    function toggleInfoPanel() {
+      const panel = document.getElementById('info-panel');
+      panel.classList.toggle('visible');
+      document.getElementById('btn-info').classList.toggle('active');
+      resizeCanvas();
+    }
+
+    // ── Info Panel ─────────────────────────────────────────────────────────────
+
+    function updateInfoPanel() {
+      if (!currentStructure) return;
+
+      const s = currentStructure;
+      const modelInfo = document.getElementById('info-model-data');
+      modelInfo.innerHTML = `
+        <div class="info-row"><span class="label">Name</span><span class="value">${s.name}</span></div>
+        <div class="info-row"><span class="label">MCB Size</span><span class="value">${formatSize(s.mcbSize)}</span></div>
+        <div class="info-row"><span class="label">CGB Size</span><span class="value">${formatSize(s.cgbSize)}</span></div>
+        <div class="info-row"><span class="label">Ptr Slots</span><span class="value">${s.pointerTableSlots}</span></div>
+        <div class="info-row"><span class="label">Models</span><span class="value">${s.modelSlots.length}</span></div>
+        <div class="info-row"><span class="label">Hierarchies</span><span class="value">${s.hierarchies.length}</span></div>
+        <div class="info-row"><span class="label">Animations</span><span class="value">${s.animationSlots.length}</span></div>
+        <div class="info-row"><span class="label">Poses</span><span class="value">${s.poseSlots.length}</span></div>
+    `;
+
+      const ptrInfo = document.getElementById('info-ptr-data');
+      const counts = s.typeCounts || {};
+      ptrInfo.innerHTML = Object.entries(counts)
+        .filter(([k]) => k !== 'zero')
+        .map(([k, v]) => `<div class="info-row"><span class="label">${k}</span><span class="value">${v}</span></div>`)
+        .join('');
+    }
+
+    function updateAnimInfo(idx) {
+      if (idx < 0 || idx >= animations.length) return;
+      const a = animations[idx].data;
+      const animInfo = document.getElementById('info-anim-data');
+      animInfo.innerHTML = `
+        <div class="info-row"><span class="label">Slot</span><span class="value">${animations[idx].slot}</span></div>
+        <div class="info-row"><span class="label">Mode</span><span class="value">${a.mode}</span></div>
+        <div class="info-row"><span class="label">Bones</span><span class="value">${a.numBones}</span></div>
+        <div class="info-row"><span class="label">Frames</span><span class="value">${a.numFrames}</span></div>
+        <div class="info-row"><span class="label">Flags</span><span class="value">0x${a.flags.toString(16).toUpperCase()}</span></div>
+        <div class="info-row"><span class="label">Position</span><span class="value">${a.hasPosition ? '✓' : '—'}</span></div>
+        <div class="info-row"><span class="label">Rotation</span><span class="value">${a.hasRotation ? '✓' : '—'}</span></div>
+        <div class="info-row"><span class="label">Scale</span><span class="value">${a.hasScale ? '✓' : '—'}</span></div>
+    `;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // ── Mouse Controls ─────────────────────────────────────────────────────────
+
+    function setupMouseControls(canvas) {
+      let isDragging = false;
+      let isPanning = false;
+      let lastX = 0, lastY = 0;
+
+      canvas.addEventListener('mousedown', e => {
+        if (e.button === 0) isDragging = true;
+        if (e.button === 1 || e.button === 2) isPanning = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        e.preventDefault();
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+        isPanning = false;
+      });
+
+      window.addEventListener('mousemove', e => {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        if (isDragging) {
+          renderer.cameraRotY += dx * 0.01;
+          renderer.cameraRotX += dy * 0.01;
+          renderer.cameraRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, renderer.cameraRotX));
+        }
+        if (isPanning) {
+          renderer.cameraPanX += dx * renderer.cameraDistance * 0.001;
+          renderer.cameraPanY -= dy * renderer.cameraDistance * 0.001;
+        }
+      });
+
+      canvas.addEventListener('wheel', e => {
+        renderer.cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
+        renderer.cameraDistance = Math.max(1, Math.min(10000, renderer.cameraDistance));
+        e.preventDefault();
+      });
+
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    // ── Render Loop ────────────────────────────────────────────────────────────
+
+    function renderLoop(timestamp = 0) {
+      animFrameId = requestAnimationFrame(renderLoop);
+
+      // Animation stepping at ~30fps (Saturn frame rate) × speed
+      const TARGET_FPS = 30;
+      const delta = timestamp - lastFrameTime;
+      lastFrameTime = timestamp;
+
+      if (animController && animController.playing && animController.currentAnimation) {
+        frameAccumulator += delta * playbackSpeed;
+        const frameInterval = 1000 / TARGET_FPS;
+
+        while (frameAccumulator >= frameInterval) {
+          frameAccumulator -= frameInterval;
+          animController.stepAnimation();
+        }
+
+        updateRendererPose();
+        updateFrameDisplay();
+      }
+
+      renderer.render();
+    }
+
+    // ── Keyboard Shortcuts ─────────────────────────────────────────────────────
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowRight':
+          stepForward();
+          break;
+        case 'ArrowLeft':
+          stepBack();
+          break;
+        case 'w':
+          toggleView('wireframe');
+          break;
+        case 'b':
+          toggleView('bones');
+          break;
+        case 't':
+          toggleView('textured');
+          break;
+        case 'r':
+          resetCamera();
+          break;
+        case 'i':
+          toggleInfoPanel();
+          break;
+      }
     });
 
-    // Walk children
-    if (node.childOffset !== 0) {
-      walkNode(node.childOffset, boneGroup);
-    }
-
-    // Walk siblings
-    if (node.siblingOffset !== 0) {
-      walkNode(node.siblingOffset, parentGroup);
-    }
-  }
-
-  // Start walk from the first node (root)
-  if (nodes.length > 0) {
-    walkNode(nodes[0].offset, group);
-  }
-
-  // Store bone positions for helper visualization
-  group.userData.bonePositions = bonePositions;
-
-  return group;
-}
-
-// ─── Bone Helper Visualization ───
-function buildBoneHelpers(modelGroup) {
-  const helpers = new THREE.Group();
-  const bonePositions = modelGroup.userData.bonePositions;
-  if (!bonePositions) return helpers;
-
-  for (const bp of bonePositions) {
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(0.02, 8, 8),
-      new THREE.MeshBasicMaterial({
-        color: bp.hasModel ? 0x40c070 : 0xff9040,
-        depthTest: false,
-      })
-    );
-    sphere.renderOrder = 999;
-
-    // Get world position
-    bp.group.updateWorldMatrix(true, false);
-    const worldPos = new THREE.Vector3();
-    worldPos.setFromMatrixPosition(bp.group.matrixWorld);
-    sphere.position.copy(worldPos);
-
-    helpers.add(sphere);
-  }
-
-  return helpers;
-}
-
-// ─── Build Flat View (all models at origin, no hierarchy) ───
-function buildFlatView(data) {
-  const group = new THREE.Group();
-  for (const [key, model] of Object.entries(data.models)) {
-    const mesh = buildModelMesh(model, data.textures);
-    group.add(mesh);
-  }
-  return group;
-}
-
-// ─── Load Model Data ───
-function loadModelData(data) {
-  state.currentData = data;
-  state.textureCache = {};
-
-  document.getElementById('welcome').style.display = 'none';
-
-  // Update hierarchy selector
-  const hierSelect = document.getElementById('hier-select');
-  hierSelect.innerHTML = '';
-
-  if (data.hierarchies.length > 0) {
-    for (let i = 0; i < data.hierarchies.length; i++) {
-      const h = data.hierarchies[i];
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `Hierarchy ${i} (${h.boneCount} bones)`;
-      hierSelect.appendChild(opt);
-    }
-    // Add "All models (flat)" option
-    const flatOpt = document.createElement('option');
-    flatOpt.value = 'flat';
-    flatOpt.textContent = 'All models (flat)';
-    hierSelect.appendChild(flatOpt);
-
-    hierSelect.style.display = '';
-    hierSelect.value = '0';
-  } else {
-    hierSelect.style.display = 'none';
-  }
-
-  state.currentHierarchy = 0;
-  rebuildScene();
-
-  // Update stats
-  document.getElementById('stat-quads').textContent = data.stats.totalQuads;
-  document.getElementById('stat-verts').textContent = data.stats.totalVertices;
-  document.getElementById('stat-bones').textContent = data.hierarchies.length > 0 ? data.hierarchies[0].boneCount : 0;
-  document.getElementById('stat-textures').textContent = data.stats.textureCount;
-
-  // Auto-frame
-  autoFrame();
-}
-
-function rebuildScene() {
-  // Remove old model
-  if (state.modelGroup) {
-    scene.remove(state.modelGroup);
-    state.modelGroup = null;
-  }
-  if (state.boneHelpers) {
-    scene.remove(state.boneHelpers);
-    state.boneHelpers = null;
-  }
-
-  const data = state.currentData;
-  if (!data) return;
-
-  const hierVal = document.getElementById('hier-select').value;
-
-  if (hierVal === 'flat' || data.hierarchies.length === 0) {
-    state.modelGroup = buildFlatView(data);
-  } else {
-    const hierIdx = parseInt(hierVal);
-    state.modelGroup = buildHierarchy(data, hierIdx);
-  }
-
-  // Scale: divide by 4096 for reasonable viewer scale (16.16 fixed point to world)
-  // Actually vertices are already divided by 16 (12.4), and bone translations by 65536 (16.16)
-  // Let's just normalize to fit
-  scene.add(state.modelGroup);
-
-  // Build bone helpers
-  if (state.showBones) {
-    state.boneHelpers = buildBoneHelpers(state.modelGroup);
-    scene.add(state.boneHelpers);
-  }
-
-  // Build bone tree UI
-  buildBoneTreeUI(data, hierVal);
-
-  // Update grid visibility
-  gridHelper.visible = state.grid;
-}
-
-function autoFrame() {
-  if (!state.modelGroup) return;
-
-  const box = new THREE.Box3().setFromObject(state.modelGroup);
-  if (box.isEmpty()) return;
-
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
-
-  orbitTarget.copy(center);
-  orbitRadius = maxDim * 2.5;
-  orbitPhi = Math.PI / 8;
-  orbitTheta = Math.PI / 6;
-  updateCamera();
-}
-
-// ─── Bone Tree UI ───
-function buildBoneTreeUI(data, hierVal) {
-  const treeEl = document.getElementById('bone-tree');
-  treeEl.innerHTML = '';
-
-  if (hierVal === 'flat' || data.hierarchies.length === 0) {
-    treeEl.innerHTML = '<span style="color:var(--text-dim);font-size:11px">No hierarchy selected</span>';
-    return;
-  }
-
-  const hierIdx = parseInt(hierVal);
-  const hier = data.hierarchies[hierIdx];
-  if (!hier) return;
-
-  for (let i = 0; i < hier.nodes.length; i++) {
-    const node = hier.nodes[i];
-    const el = document.createElement('div');
-    el.className = 'bone-node' + (node.modelOffset !== 0 ? ' has-model' : '');
-    el.style.paddingLeft = (8 + node.depth * 12) + 'px';
-    el.innerHTML = `<span class="bone-dot"></span>Bone ${i}`;
-    el.title = `offset: 0x${node.offset.toString(16).toUpperCase()}\nmodel: 0x${node.modelOffset.toString(16).toUpperCase()}`;
-    treeEl.appendChild(el);
-  }
-}
-
-// ─── Controls ───
-function toggleControl(el, key) {
-  state[key] = !state[key];
-  el.classList.toggle('on', state[key]);
-
-  if (key === 'wireframe' || key === 'textures' || key === 'backfaces') {
-    rebuildScene();
-  }
-  if (key === 'showBones') {
-    if (state.boneHelpers) {
-      scene.remove(state.boneHelpers);
-      state.boneHelpers = null;
-    }
-    if (state.showBones && state.modelGroup) {
-      state.boneHelpers = buildBoneHelpers(state.modelGroup);
-      scene.add(state.boneHelpers);
-    }
-  }
-  if (key === 'grid') {
-    gridHelper.visible = state.grid;
-  }
-}
-
-// ─── Panel Toggle ───
-document.getElementById('panel-toggle').addEventListener('click', function() {
-  document.getElementById('side-panel').classList.toggle('collapsed');
-  this.classList.toggle('collapsed');
-  this.textContent = this.classList.contains('collapsed') ? '▶' : '◀';
-  // Resize renderer
-  setTimeout(() => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-  }, 250);
-});
-
-// ─── Hierarchy Selector ───
-document.getElementById('hier-select').addEventListener('change', function() {
-  rebuildScene();
-  
-  const val = this.value;
-  if (val !== 'flat' && state.currentData) {
-    const hier = state.currentData.hierarchies[parseInt(val)];
-    if (hier) {
-      document.getElementById('stat-bones').textContent = hier.boneCount;
-    }
-  }
-  
-  autoFrame();
-});
-
-// ─── File Drag & Drop ───
-document.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  document.getElementById('drop-overlay').classList.add('active');
-});
-
-document.getElementById('drop-overlay').addEventListener('dragleave', () => {
-  document.getElementById('drop-overlay').classList.remove('active');
-});
-
-document.addEventListener('drop', (e) => {
-  e.preventDefault();
-  document.getElementById('drop-overlay').classList.remove('active');
-
-  const file = e.dataTransfer.files[0];
-  if (!file || !file.name.endsWith('.json')) return;
-
-  showLoading('Loading ' + file.name + '...');
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      loadModelData(data);
-    } catch (err) {
-      console.error('Failed to parse JSON:', err);
-    }
-    hideLoading();
-  };
-  reader.readAsText(file);
-});
-
-// ─── Loading UI ───
-function showLoading(text) {
-  document.getElementById('loading-text').textContent = text || 'Loading...';
-  document.getElementById('loading').classList.add('active');
-}
-
-function hideLoading() {
-  document.getElementById('loading').classList.remove('active');
-}
-
-// ─── Window Resize ───
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// ─── Animation Loop ───
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-animate();
-
-
-// ─── File Loading ───
-// Models loaded from JSON files in the same directory via manifest.json.
-// Also supports drag-and-drop of individual .json files.
-
-const _modelCache = {};  // Runtime cache for fetched model data
-
-function populateFileList(manifest) {
-  const select = document.getElementById('file-select');
-  select.innerHTML = '<option value="">— select model —</option>';
-  
-  for (const file of manifest.files) {
-    const opt = document.createElement('option');
-    opt.value = file.name;
-    opt.textContent = `${file.name} (${file.stats.totalQuads}q ${file.stats.modelCount}m)`;
-    select.appendChild(opt);
-  }
-}
-
-document.getElementById('file-select').addEventListener('change', async function() {
-  const name = this.value;
-  if (!name) return;
-
-  if (_modelCache[name]) {
-    loadModelData(_modelCache[name]);
-    return;
-  }
-
-  // Try loading from relative path
-  showLoading('Loading ' + name + '...');
-  try {
-    const resp = await fetch(name + '.json');
-    if (resp.ok) {
-      const data = await resp.json();
-      _modelCache[name] = data;
-      loadModelData(data);
-    }
-  } catch (e) {
-    console.warn('Could not fetch', name);
-  }
-  hideLoading();
-});
-
-// ─── Auto-load manifest.json from same directory ───
-async function autoLoadManifest() {
-  try {
-    const resp = await fetch('manifest.json');
-    if (!resp.ok) return;
-    const manifest = await resp.json();
-    populateFileList(manifest);
-    document.getElementById('welcome').querySelector('h2').textContent = 
-      manifest.totalFiles + ' models available — select from the dropdown';
-    // Auto-select first model
-    if (manifest.files.length > 0) {
-      const first = manifest.files[0].name;
-      document.getElementById('file-select').value = first;
-      document.getElementById('file-select').dispatchEvent(new Event('change'));
-    }
-  } catch (e) {
-    // No manifest found — user can drag-and-drop JSON files
-  }
-}
-
-// ─── Animation Playback State ───
-let animPlaying = false;
-let animFrame = 0;
-let animIndex = 0;
-let animFrameTimer = 0;
-const ANIM_FPS = 15; // Saturn runs at ~30fps, but keyframes are sparser
-
-function updateAnimationUI(data) {
-  const container = document.getElementById('stats-bar');
-  // Add animation selector if not present
-  let animSel = document.getElementById('anim-select');
-  if (!animSel) {
-    animSel = document.createElement('select');
-    animSel.id = 'anim-select';
-    animSel.style.cssText = 'background:var(--bg);color:var(--text-bright);border:1px solid var(--panel-border);border-radius:4px;padding:2px 6px;font-family:JetBrains Mono,monospace;font-size:11px;cursor:pointer;margin-left:8px;';
-    document.getElementById('file-selector').appendChild(animSel);
-    
-    const playBtn = document.createElement('button');
-    playBtn.id = 'play-btn';
-    playBtn.textContent = '▶';
-    playBtn.style.cssText = 'background:var(--bg);color:var(--accent);border:1px solid var(--panel-border);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px;margin-left:4px;';
-    playBtn.onclick = togglePlay;
-    document.getElementById('file-selector').appendChild(playBtn);
-  }
-  
-  animSel.innerHTML = '<option value="-1">Rest Pose</option>';
-  if (data.animations) {
-    data.animations.forEach((a, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = 'Anim ' + i + ' (' + a.numBakedFrames + 'f, mode' + a.mode + ')';
-      animSel.appendChild(opt);
-    });
-    if (data.animations.length > 0) {
-      animSel.value = '0';
-      animIndex = 0;
-      applyAnimationFrame(0);
-    }
-  }
-  animSel.onchange = function() {
-    animIndex = parseInt(this.value);
-    animFrame = 0;
-    if (animIndex >= 0) applyAnimationFrame(0);
-    else rebuildScene();
-  };
-}
-
-function togglePlay() {
-  animPlaying = !animPlaying;
-  document.getElementById('play-btn').textContent = animPlaying ? '⏸' : '▶';
-}
-
-function applyAnimationFrame(frame) {
-  const data = state.currentData;
-  if (!data || animIndex < 0 || animIndex >= data.animations.length) return;
-  const anim = data.animations[animIndex];
-  if (frame >= anim.frames.length) frame = 0;
-  
-  // Apply animation frame as the pose, then rebuild
-  const hierVal = document.getElementById('hier-select').value;
-  if (hierVal === 'flat' || data.hierarchies.length === 0) return;
-  
-  // Store current animation frame data for the rebuild
-  state.currentAnimFrame = anim.frames[frame];
-  rebuildScene();
-}
-
-// ─── Override buildHierarchy to use animation frame data ───
-const _origBuildHierarchy = buildHierarchy;
-buildHierarchy = function(data, hierIndex) {
-  const hier = data.hierarchies[hierIndex];
-  if (!hier) return new THREE.Group();
-  
-  // Use animation frame if available, otherwise pose data
-  const animFrame = state.currentAnimFrame;
-  const pose = data.poses[hierIndex] || null;
-  const nodes = hier.nodes;
-  const textures = data.textures;
-  
-  const nodeByOffset = {};
-  for (const node of nodes) nodeByOffset[node.offset] = node;
-  
-  const offsetToModelKey = {};
-  for (const [key, model] of Object.entries(data.models)) {
-    const ptrEntry = data.pointerTable[parseInt(key)];
-    if (ptrEntry) offsetToModelKey[ptrEntry.offset] = key;
-  }
-  
-  const group = new THREE.Group();
-  const bonePositions = [];
-  let boneIndex = 0;
-  
-  function walkNode(offset, parentGroup) {
-    const node = nodeByOffset[offset];
-    if (!node) return;
-    
-    const boneGroup = new THREE.Group();
-    boneGroup.name = 'bone_' + boneIndex;
-    
-    // Get transform from animation frame or pose
-    let tx=0, ty=0, tz=0, rx=0, ry=0, rz=0;
-    
-    if (animFrame && boneIndex < animFrame.length) {
-      const af = animFrame[boneIndex];
-      tx = af.translation[0]; ty = af.translation[1]; tz = af.translation[2];
-      rx = af.rotation[0]; ry = af.rotation[1]; rz = af.rotation[2];
-    } else if (pose && boneIndex < pose.bones.length) {
-      const b = pose.bones[boneIndex];
-      tx = b.translation[0]; ty = b.translation[1]; tz = b.translation[2];
-      rx = b.rotation[0]; ry = b.rotation[1]; rz = b.rotation[2];
-    }
-    
-    boneGroup.position.set(tx, ty, -tz);
-    
-    const toRad = Math.PI / 180;
-    // Saturn rotation order: ZYX, applied as rotateZ then rotateY then rotateX
-    // The hierarchy drawing code does: rotateCurrentMatrixZYX
-    // which calls rotateZ(-rz), rotateX(-rx), rotateY(-ry)
-    // Note the NEGATION in the yaz0r code
-    boneGroup.rotation.order = 'YXZ';  // Three.js applies in reverse order
-    boneGroup.rotation.set(-rx * toRad, -ry * toRad, -rz * toRad);
-    
-    boneIndex++;
-    
-    if (node.modelOffset !== 0) {
-      const modelKey = offsetToModelKey[node.modelOffset];
-      if (modelKey && data.models[modelKey]) {
-        const modelMesh = buildModelMesh(data.models[modelKey], textures);
-        boneGroup.add(modelMesh);
-      }
-    }
-    
-    parentGroup.add(boneGroup);
-    bonePositions.push({ group: boneGroup, hasModel: node.modelOffset !== 0 });
-    
-    if (node.childOffset !== 0) walkNode(node.childOffset, boneGroup);
-    if (node.siblingOffset !== 0) walkNode(node.siblingOffset, parentGroup);
-  }
-  
-  if (nodes.length > 0) walkNode(nodes[0].offset, group);
-  group.userData.bonePositions = bonePositions;
-  return group;
-};
-
-// Override loadModelData to setup animation UI
-const _origLoadModelData = loadModelData;
-loadModelData = function(data) {
-  state.currentAnimFrame = null;
-  _origLoadModelData(data);
-  updateAnimationUI(data);
-};
-
-// Animation loop update
-const _origAnimate = animate;
-let lastAnimTime = 0;
-function animateWithPlayback() {
-  requestAnimationFrame(animateWithPlayback);
-  renderer.render(scene, camera);
-  
-  if (animPlaying && state.currentData && animIndex >= 0) {
-    const now = performance.now();
-    if (now - lastAnimTime > 1000 / ANIM_FPS) {
-      lastAnimTime = now;
-      const anim = state.currentData.animations[animIndex];
-      if (anim) {
-        animFrame = (animFrame + 1) % anim.frames.length;
-        applyAnimationFrame(animFrame);
-      }
-    }
-  }
-}
-
-// Replace animation loop
-animateWithPlayback();
-
-// Start
-autoLoadManifest();
-
-</script>
+    // ── Start ──────────────────────────────────────────────────────────────────
+    init();
+  </script>
 </body>
+
 </html>
