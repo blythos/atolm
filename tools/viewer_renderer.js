@@ -363,20 +363,18 @@ const VERT_SHADER = `
     uniform mat4 uProjection;
     uniform mat4 uView;
     uniform mat4 uModel;
-    uniform vec3 uLightDir;
 
     varying vec2 vTexCoord;
     varying vec4 vColor;
-    varying float vLighting;
+    varying vec3 vNormal;
 
     void main() {
         gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
         vTexCoord = aTexCoord;
         vColor = aColor;
 
-        // Two-sided lighting (no backface culling, so both sides should be lit equally)
-        vec3 worldNormal = normalize(mat3(uModel) * aNormal);
-        vLighting = abs(dot(worldNormal, normalize(uLightDir))) * 0.6 + 0.4;
+        // Pass transformed normal to fragment shader
+        vNormal = mat3(uModel) * aNormal;
     }
 `;
 
@@ -385,11 +383,12 @@ const FRAG_SHADER = `
 
     varying vec2 vTexCoord;
     varying vec4 vColor;
-    varying float vLighting;
+    varying vec3 vNormal;
 
     uniform sampler2D uTexture;
     uniform bool uUseTexture;
     uniform float uAlpha;
+    uniform vec3 uLightDir;
 
     void main() {
         vec4 color;
@@ -399,9 +398,13 @@ const FRAG_SHADER = `
         } else {
             color = vColor;
         }
-        color.rgb *= vLighting;
-        color.a *= uAlpha;
-        gl_FragColor = color;
+
+        // Per-pixel two-sided lighting
+        vec3 N = normalize(vNormal);
+        vec3 L = normalize(uLightDir);
+        float lighting = abs(dot(N, L)) * 0.6 + 0.4;
+
+        gl_FragColor = vec4(color.rgb * lighting, color.a * uAlpha);
     }
 `;
 

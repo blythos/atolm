@@ -108,7 +108,25 @@ python3 pds_extract.py disc.bin --extract-all -o output/ -v
 
 ## Viewer: `pds_viewer.html`
 
-A single HTML file using Three.js. Place it alongside the extracted JSON/PNG files and serve via any HTTP server.
+The viewer consists of `pds_viewer.html`, `viewer_renderer.js`, and `viewer_animation.js`.
+
+### Usage
+
+**1. Portable Mode (Recommended)**
+Copy all three viewer files into the output directory containing your extracted models (where `manifest.json` is).
+```bash
+cp tools/pds_viewer.html tools/viewer_renderer.js tools/viewer_animation.js output/
+cd output/
+python3 -m http.server
+# Open http://localhost:8000/pds_viewer.html
+```
+
+**2. Development Mode**
+Run the server from the project root. The viewer in `tools/` will automatically look for models in `output/raw/`.
+```bash
+python3 -m http.server
+# Open http://localhost:8000/tools/pds_viewer.html
+```
 
 **Features:**
 - **Categorised Asset Browser**: Dragons, Characters, NPCs, Fields, Maps, Objects, Overworld.

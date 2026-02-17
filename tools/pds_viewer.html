@@ -483,7 +483,7 @@
   <script>
 
     // ── Configuration ──────────────────────────────────────────────────────────
-    const DATA_BASE = '../output/raw';
+    let dataBase = '../output/raw';
 
     // ── State ──────────────────────────────────────────────────────────────────
     let manifest = null;
@@ -518,7 +518,18 @@
 
       // Load manifest
       try {
-        const resp = await fetch(`${DATA_BASE}/manifest.json`);
+        // Try current directory first (portable mode)
+        let manifestPath = './manifest.json';
+        let resp = await fetch(manifestPath).catch(() => null);
+
+        if (!resp || !resp.ok) {
+          // Fallback to dev path
+          dataBase = '../output/raw';
+          resp = await fetch(`${dataBase}/manifest.json`);
+        } else {
+          dataBase = '.';
+        }
+
         manifest = await resp.json();
         buildModelList();
         document.getElementById('model-count').textContent =
@@ -605,9 +616,9 @@
       try {
         // Fetch raw files
         const [mcbResp, cgbResp, structResp] = await Promise.all([
-          fetch(`${DATA_BASE}/${name}.mcb.bin`),
-          fetch(`${DATA_BASE}/${name}.cgb.bin`).catch(() => null),
-          fetch(`${DATA_BASE}/${name}_structure.json`),
+          fetch(`${dataBase}/${name}.mcb.bin`),
+          fetch(`${dataBase}/${name}.cgb.bin`).catch(() => null),
+          fetch(`${dataBase}/${name}_structure.json`),
         ]);
 
         currentMCB = new Uint8Array(await mcbResp.arrayBuffer());
