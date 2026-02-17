@@ -4,8 +4,7 @@ import argparse
 import json
 from common.iso9660 import ISO9660Reader, read_sector
 
-# Monkey-patch ISO9660Reader to support extraction if not present
-if not hasattr(ISO9660Reader, 'extract_file'):
+class ExtReader(ISO9660Reader):
     def extract_file(self, lba, size, output_path):
         """Extract a file given its LBA and size."""
         num_sectors = (size + 2048 - 1) // 2048
@@ -16,37 +15,42 @@ if not hasattr(ISO9660Reader, 'extract_file'):
         
         with open(output_path, 'wb') as f:
             f.write(data[:size])
-    
-    ISO9660Reader.extract_file = extract_file
 
-TRACK_NAMES = [
-    "A3 1 (MAP)", "A3 2 (MAP)", "A3 (MAP)", "A3 (ZAKO)", "A3 2 (ZAKO)", "A3 (MBOS)",
-    "A5 (MAP)", "A5 (ZAKO)", "A5 (MBOS)", "A5 (BOSS)",
-    "A7 (MAP)", "A7 (ZAKO)", "A7 (MBOS)", "A7 (BOSS)",
-    "B1 (MAP)", "B1 (ZAKO)", "B3 (MAP)",
-    "B2 1 (MAP)", "B2 2 (MAP)", "B2 (MBOS)", "B2 (BOSS)",
-    "B5 1 (MAP)", "B5 (ZAKO)", "B5 2 (ZAKO)", "B5 3 (ZAKO)", "B5 (MBOS)", "B5 (BOSS)",
-    "B6 (MAP)", "B6 (ZAKO)", "B6 (MBOS)", "B6 (BOSS)",
-    "C2 (MAP)", "C2 (ZAKO)", "C2 (MBOS)", "C2 (BOSS)",
-    "C4 (MAP)", "C4 (ZAKO)", "C4 (MBOS)",
-    "C5 (ZAKO)", "C5 (MBOS)", "C5 (BOSS)",
-    "C8 (MAP)", "C8 (ZAKO)", "C8 (BOSS)",
-    "D2 (MAP)", "D2 (BOSS)", "D3 (MAP)",
-    "D4 (MAP)", "D4 (ZAKO)", "D4 (MBOS)",
-    "D5 (MAP)", "D5 1 (MBOS)", "D5 2 (MBOS)", "D5 (BOSS)",
-    "AD", "HANU", "RUIN", "EXCA", "TOWN", "PAET", "CARAVAN", "CAMP", "SEEKER",
-    "EVENT 06", "EVENT 11", "EVENT 14", "EVENT 22", "EVENT 74", "EVENT 78", "EVENT 128",
-    "TITLE", "DROGON 00", "DROGON 08", "EDGE", "EDGE2"
-]
+def parse_sndtest_names(data):
+    """Extract potential track names from SNDTEST.PRG data."""
+    # Look for the block of names. They usually follow "NULL" and "COMMON".
+    import re
+    strings = re.findall(b'[\x20-\x7E]{4,}', data)
+    names = []
+    started = False
+    for s in strings:
+        name = s.decode('ascii', errors='ignore').strip()
+        if name == "COMMON":
+            started = True
+            continue
+        if started:
+            # End of names block usually starts with things like "AD", "HANU", 
+            # and then wraps up with "TITLE", "EDGE", etc.
+            # Stop if we hit UI strings.
+            if "Stop" in name or "Play" in name or "Volume" in name:
+                break
+            # Skip some known non-track strings if they appear
+            if name in ["NULL", "PAUSE", "START", "HEADER", "PLAY"]:
+                if len(names) > 30: # We expect ~75-80 names
+                    break
+                continue
+            names.append(name)
+    return names
 
 def scan_iso(iso_path):
     print(f"Scanning ISO: {iso_path}")
-    reader = ISO9660Reader(iso_path)
+    reader = ExtReader(iso_path)
     files = reader.list_files()
     
     seq_files = []
     snd_files = []
     bin_files = []
+    sndtest_file = None
     
     for f in files:
         name = f['name'].upper()
@@ -55,26 +59,35 @@ def scan_iso(iso_path):
         elif '.SND' in name:
             snd_files.append(f)
         elif name.endswith('.BIN'):
-            # Only consider .BIN files that might be tone banks
-            # Heuristic: > 10KB and < 1MB (tone banks are usually in this range)
             if 1024 * 10 <= f['size'] <= 1024 * 1024:
-                # Also exclude known non-audio types if we had a list, 
-                # but for now we'll just keep them as candidates
                 bin_files.append(f)
+        elif 'SNDTEST.PRG' in name:
+            sndtest_file = f
     
+    track_names = []
+    if sndtest_file:
+        print(f"Found {sndtest_file['name']}, extracting track names...")
+        # Use a temp buffer or read it
+        reader.f.seek(sndtest_file['lba'] * 2048)
+        data = b''
+        num_sectors = (sndtest_file['size'] + 2047) // 2048
+        for i in range(num_sectors):
+            data += read_sector(reader.f, sndtest_file['lba'] + i)
+        track_names = parse_sndtest_names(data[:sndtest_file['size']])
+        print(f"Extracted {len(track_names)} track names")
+
     print(f"Found {len(seq_files)} .SEQ files")
     print(f"Found {len(snd_files)} .SND files")
     print(f"Found {len(bin_files)} candidate .BIN files")
     
-    # Heuristic pairing: Match .BIN to .SEQ if same dir and same base name
     catalog = {
-        'standalone': [],
+        'named_tracks': [],
+        'unnamed_tracks': [],
         'bundles': []
     }
     
-    # Track which BINs we've paired
-    paired_bins = set()
-    
+    # Pairs
+    pairs = []
     for seq in seq_files:
         seq_path = seq['name']
         seq_dir = os.path.dirname(seq_path)
@@ -83,26 +96,23 @@ def scan_iso(iso_path):
         match = None
         for bin_f in bin_files:
             bin_path = bin_f['name']
-            bin_dir = os.path.dirname(bin_path)
-            bin_base = os.path.splitext(os.path.basename(bin_path))[0]
-            
-            if bin_dir == seq_dir and bin_base == seq_base:
+            if os.path.dirname(bin_path) == seq_dir and os.path.splitext(os.path.basename(bin_path))[0] == seq_base:
                 match = bin_f
-                paired_bins.add(bin_path)
                 break
-        
-        catalog['standalone'].append({
-            'seq': seq,
-            'ton': match,
-            'name': None # To be filled by heuristic or manual map
-        })
+        pairs.append({'seq': seq, 'ton': match})
+
+    # Sort by LBA to match game order heuristic
+    pairs_sorted = sorted(pairs, key=lambda x: x['seq']['lba'])
+    
+    for i, pair in enumerate(pairs_sorted):
+        if i < len(track_names):
+            pair['name'] = track_names[i]
+            catalog['named_tracks'].append(pair)
+        else:
+            catalog['unnamed_tracks'].append(pair)
         
     for snd in snd_files:
         catalog['bundles'].append(snd)
-
-    # Simple naming heuristic based on standalone list order
-    # Note: This is a guess as SNDTEST.PRG list order might not match dir scan order.
-    # However, for now we just want the files.
         
     reader.close()
     return catalog
@@ -142,8 +152,15 @@ def main():
             json.dump(catalog, f, indent=4)
         print(f"\nCatalog saved to {catalog_path}")
         
-        print("\n--- STANDALONE TRACKS ---")
-        for entry in catalog['standalone']:
+        print("\n--- NAMED TRACKS ---")
+        for entry in catalog['named_tracks']:
+            seq_name = entry['seq']['name']
+            ton_name = entry['ton']['name'] if entry['ton'] else "MISSING TON"
+            display_name = entry.get('name') or "Unknown"
+            print(f"[{display_name}] SEQ: {seq_name} -> TON: {ton_name}")
+            
+        print("\n--- UNNAMED TRACKS ---")
+        for entry in catalog['unnamed_tracks']:
             seq_name = entry['seq']['name']
             ton_name = entry['ton']['name'] if entry['ton'] else "MISSING TON"
             print(f"SEQ: {seq_name} -> TON: {ton_name}")
@@ -161,7 +178,7 @@ def main():
             return
             
         print("\nExtracting raw files...")
-        reader = ISO9660Reader(args.iso)
+        reader = ExtReader(args.iso)
         
         # Load catalog if it exists, otherwise scan
         catalog_path = os.path.join(output_dir, 'music_catalog.json')
@@ -174,20 +191,21 @@ def main():
         raw_dir = os.path.join(output_dir, 'raw')
         os.makedirs(raw_dir, exist_ok=True)
 
-        for entry in catalog['standalone']:
-            seq = entry['seq']
-            ton = entry['ton']
-            
-            # Extract SEQ
-            seq_out = os.path.join(raw_dir, os.path.basename(seq['name']))
-            print(f"Extracting {seq['name']}...")
-            reader.extract_file(seq['lba'], seq['size'], seq_out)
-            
-            # Extract TON if present
-            if ton:
-                ton_out = os.path.join(raw_dir, os.path.basename(ton['name']))
-                print(f"Extracting {ton['name']}...")
-                reader.extract_file(ton['lba'], ton['size'], ton_out)
+        for section in ['named_tracks', 'unnamed_tracks']:
+            for entry in catalog[section]:
+                seq = entry['seq']
+                ton = entry['ton']
+                
+                # Extract SEQ
+                seq_out = os.path.join(raw_dir, os.path.basename(seq['name']))
+                print(f"Extracting {seq['name']}...")
+                reader.extract_file(seq['lba'], seq['size'], seq_out)
+                
+                # Extract TON if present
+                if ton:
+                    ton_out = os.path.join(raw_dir, os.path.basename(ton['name']))
+                    print(f"Extracting {ton['name']}...")
+                    reader.extract_file(ton['lba'], ton['size'], ton_out)
         
         reader.close()
         print(f"Extraction complete. Files saved to {raw_dir}")
