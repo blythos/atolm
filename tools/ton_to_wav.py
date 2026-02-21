@@ -49,10 +49,24 @@ class TONParser:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             
+        # Determine PCM start offset first
+        # Heuristic: PCM starts after all the voice/layer headers.
+        first_ptr = self._read_u16(0)
+        num_entries = first_ptr // 2
+        max_ptr_target = 0
+        for i in range(min(num_entries, 256)): # Safety cap
+            ptr = self._read_u16(i * 2)
+            if ptr != 0xFFFF and ptr < len(self.data):
+                max_ptr_target = max(max_ptr_target, ptr)
+        
+        pcm_start = ((max_ptr_target + 128 + 0x3F) // 0x40) * 0x40
+            
+        print(f"Detected PCM start at {hex(pcm_start)}")
+
         found_samples = []
-        # Scan first 4KB for SCSP Slot Descriptors
-        for i in range(0, min(len(self.data), 4096), 2):
-            if i + 32 > len(self.data): break
+        # Scan headers up to pcm_start for CyberSound layer descriptors
+        scan_end = min(len(self.data), pcm_start)
+        for i in range(0, scan_end - 31, 2):
             slot0 = self._read_u16(i)
             # MD (Mode): 0=PCM8, 1=PCM16, 2=ADPCM
             mode = (slot0 >> 11) & 0x03
@@ -79,20 +93,6 @@ class TONParser:
                 seen.add(key)
         
         unique_samples.sort(key=lambda x: x['sa'])
-        
-        # Determine PCM start offset
-        # Heuristic: PCM starts after all the voice/layer headers.
-        first_ptr = self._read_u16(0)
-        num_entries = first_ptr // 2
-        max_ptr_target = 0
-        for i in range(min(num_entries, 256)): # Safety cap
-            ptr = self._read_u16(i * 2)
-            if ptr != 0xFFFF and ptr < len(self.data):
-                max_ptr_target = max(max_ptr_target, ptr)
-        
-        pcm_start = ((max_ptr_target + 128 + 0x3F) // 0x40) * 0x40
-            
-        print(f"Detected PCM start at {hex(pcm_start)}")
         
         count = 0
         for s in unique_samples:
