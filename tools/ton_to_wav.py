@@ -49,45 +49,67 @@ class TONParser:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             
-        # Determine PCM start offset first
-        # Heuristic: PCM starts after all the voice/layer headers.
+        # 1) Detect PCM Start offset
+        # The first word is distance in bytes to the first sample block? No, it's the size of the jump table in bytes!
         first_ptr = self._read_u16(0)
         num_entries = first_ptr // 2
-        max_ptr_target = 0
+        pointers = []
         for i in range(min(num_entries, 256)): # Safety cap
             ptr = self._read_u16(i * 2)
             if ptr != 0xFFFF and ptr < len(self.data):
-                max_ptr_target = max(max_ptr_target, ptr)
+                pointers.append(ptr)
         
-        pcm_start = ((max_ptr_target + 128 + 0x3F) // 0x40) * 0x40
-            
+        if not pointers:
+            print("No valid instrument pointers found.")
+            return
+
+        pcm_start = ((max(pointers) + 128 + 0x3F) // 0x40) * 0x40
         print(f"Detected PCM start at {hex(pcm_start)}")
 
         found_samples = []
-        # Scan headers up to pcm_start for CyberSound layer descriptors
-        scan_end = min(len(self.data), pcm_start)
-        for i in range(0, scan_end - 31, 2):
-            slot0 = self._read_u16(i)
-            # MD (Mode): 0=PCM8, 1=PCM16, 2=ADPCM
-            mode = (slot0 >> 11) & 0x03
-            if mode in [0, 1]: 
-                sa_high = self.data[i+3] & 0x03
-                sa_low = self._read_u16(i+4)
-                sa = (sa_high << 16) | sa_low
-                
-                lea_high = self.data[i+11] & 0x03
-                lea_low = self._read_u16(i+12)
-                lea = (lea_high << 16) | lea_low
-                
-                if 0 <= sa < lea and (lea - sa) > 16:
-                    if lea < 0x80000: # 512KB SCSP RAM
-                        found_samples.append({'ptr': i, 'sa': sa, 'lea': lea, 'mode': mode})
         
-        # Deduplicate
+        # 2) Traverse SDDRVS jump table
+        for ptr in pointers:
+            if ptr + 4 > len(self.data) or ptr >= pcm_start:
+                continue
+            
+            # The structure is: 4-byte header, followed by N * 32-byte layer definitions.
+            # Header Word 1's high byte dictates (Number of Layers - 1).
+            header_w1 = self._read_u16(ptr + 2)
+            num_layers = (header_w1 >> 8) + 1
+            
+            block_offset = ptr + 4
+            for layer in range(num_layers):
+                if block_offset + 32 > len(self.data):
+                    break
+                
+                word0 = self._read_u16(block_offset + 0)
+                word1 = self._read_u16(block_offset + 2)
+                word2 = self._read_u16(block_offset + 4)
+                word3 = self._read_u16(block_offset + 6) # LSA
+                word4 = self._read_u16(block_offset + 8) # LEA
+                
+                # Check bit 4 for Mode (0=16-bit PCM, 1=8-bit PCM)
+                is_8bit = (word0 & 0x0010) != 0
+                mode = 0 if is_8bit else 1
+                bits = 8 if is_8bit else 16
+                
+                # SA is 20-bit: (Word 1 Low Byte & 0x03) << 16 | Word 2
+                sa = ((word1 & 0x03) << 16) | word2
+                
+                # Length in bytes: LEA is strictly in words (1 word = 2 bytes) for both 8-bit and 16-bit.
+                length_bytes = word4 * 2
+                
+                if length_bytes > 0:
+                    found_samples.append({'sa': sa, 'len': length_bytes, 'bits': bits, 'mode': mode})
+                
+                block_offset += 32
+        
+        # Deduplicate identical sample references
         unique_samples = []
         seen = set()
         for s in found_samples:
-            key = (s['sa'], s['lea'], s['mode'])
+            key = (s['sa'], s['len'], s['bits'])
             if key not in seen:
                 unique_samples.append(s)
                 seen.add(key)
@@ -97,24 +119,20 @@ class TONParser:
         count = 0
         for s in unique_samples:
             sa = s['sa']
-            lea = s['lea']
+            length = s['len']
+            bits = s['bits']
             mode = s['mode']
             
-            # SCSP Units: Bytes for PCM8, Words for PCM16
-            if mode == 1:
-                file_off = pcm_start + sa * 2
-                length = (lea - sa) * 2
-                bits = 16
-            else:
-                file_off = pcm_start + sa
-                length = lea - sa
-                bits = 8
+            file_off = pcm_start + sa
             
-            if file_off + length > len(self.data):
+            if file_off >= len(self.data) or length <= 0:
                 continue
-                
+            
+            # Clamp length to physical file payload end to prevent out of bounds
+            length = min(length, len(self.data) - file_off)
+            
             sample_data = self.data[file_off : file_off + length]
-            if not sample_data: continue
+            if len(sample_data) < 16: continue # skip garbage micro-samples
             
             wav_name = f"sample_{count:03d}_sa_{hex(sa)}_mode{mode}.wav"
             wav_path = os.path.join(output_dir, wav_name)
