@@ -151,6 +151,57 @@ The viewer's animation engine is a **direct port of the original Saturn logic**,
 
 The custom `stepAnimationTrack` logic handles the Saturn's specific RLE-like compressed track format, where values encode both a delay (low 4 bits) and a delta (high 12 bits).
 
+## Sequential Music Extraction
+
+PDS uses Sega's CyberSound system: `.SEQ` files contain note event sequences (similar to MIDI); `.BIN` files paired with them contain the PCM instrument samples (CyberSound TON format). The EPISODE/INTER `.SND` files are archives containing multiple SEQ and TON banks.
+
+### Step 1: Extract SEQ and BIN files from the disc
+
+```bash
+python tools/seq_extract.py \
+  --iso "ISOs/Panzer Dragoon Saga (USA) (Disc 1) (Track 1).bin" \
+  --extract \
+  --output output/seq_extract/
+```
+
+This extracts all standalone `.SEQ` and `.BIN` files into `output/seq_extract/raw/` and writes a `catalog.json` mapping tracks to names (sourced from the disc's hidden SNDTEST.PRG).
+
+To just list what's available without extracting:
+```bash
+python tools/seq_extract.py --iso "ISOs/..." --scan
+```
+
+### Step 2: Convert a SEQ file to MIDI
+
+```bash
+python tools/seq_to_midi.py \
+  --input output/seq_extract/raw/KOGATA.SEQ \
+  --output output/midi/KOGATA.mid
+```
+
+The resulting `.mid` file can be opened in any DAW or MIDI player.
+
+### Step 3: Extract instrument samples from a BIN tone bank
+
+```bash
+python tools/ton_to_wav.py \
+  --input output/seq_extract/raw/KOGATA.BIN \
+  --output output/ton_wav/KOGATA/
+```
+
+Each extracted WAV file contains one unique instrument sample from the bank. Files are named `sample_NNN_at0xOFFSET_Xbit_22050hz.wav`.
+
+**Notes:**
+- Multiple voices in a bank often share the same underlying PCM region; the tool deduplicates automatically.
+- Some BIN files (e.g. `BOS5BGM.BIN`) are part of SND bundle packages and will have fewer extractable samples than voices — this is expected. The remaining samples live in a companion TON bank within the SND archive.
+- Sample rate defaults to 22050 Hz. If an instrument sounds pitched wrong, the true rate is one of: 7680, 11025, 15360, 22050, or 44100 Hz. The BIN file does not encode this directly.
+- 8-bit samples are signed Saturn PCM converted to unsigned WAV automatically.
+- 16-bit samples are big-endian on Saturn, byte-swapped to little-endian WAV automatically.
+
+### SND bundle archives (EPISODE1–4, INTER12/23/35)
+
+These require manual splitting at documented byte offsets before the TON and SEQ banks inside them can be processed. Offsets for the USA Disc 1 builds are in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`.
+
 ## Known Limitations
 
 - **Bank-mode textures** (colour modes 0 and 4) render as greyscale. These need VDP2 Color RAM data from PNB files, which requires parsing scene-specific PRG bytecode.

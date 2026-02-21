@@ -185,3 +185,65 @@ Standalone `.PCM` files on the disc (outside of CPK containers) are typically ra
 1. **16-bit**: Byte-swap to Little-Endian.
 2. **8-bit**: Convert Signed to Unsigned (`u8 = s8 + 128`).
 
+---
+
+## CyberSound TON Format (Instrument Sample Banks)
+
+In-game music uses Sega's **CyberSound** system running on the SCSP chip's embedded Motorola 68EC000 CPU. Small SEQ sequence files drive playback; the actual PCM waveforms live in TON-format banks. In PDS these banks are stored as `.BIN` files paired with `.SEQ` files by the same base name.
+
+### File Structure
+
+```
+Bytes 0–1:  mixer_off  (u16 BE) — byte offset to mixer section
+Bytes 2–3:  vl_off     (u16 BE) — byte offset to VL (volume/level) section
+Bytes 4–5:  peg_off    (u16 BE) — byte offset to PEG (pitch envelope) section
+Bytes 6–7:  plfo_off   (u16 BE) — byte offset to PLFO (pitch LFO) section
+
+Bytes 8..(mixer_off−1): Voice offset table
+  num_voices = (mixer_off − 8) / 2
+  Each entry: u16 BE byte offset to that voice's descriptor block
+
+[mixer section]   — SCSP mixer data, not needed for extraction
+[vl section]      — per-voice volume data
+[peg section]     — pitch envelope generator data
+[plfo section]    — always 4 bytes
+
+Voice descriptors (starting at plfo_off + 4, laid out sequentially):
+  Each voice: [4-byte header] + [nlayers × 32-byte layer blocks]
+  Header byte[2] = nlayers − 1  (signed; 0 means 1 layer, 2 means 3 layers, etc.)
+
+PCM sample data: embedded inline within the file; accessed via tone_off pointers.
+```
+
+### Layer Block (32 bytes per layer)
+
+```
++0x00–0x01  LSA    loop start address (not needed for WAV export)
++0x02–0x05  u32 BE:
+              bits[18:0] & 0x0007FFFF = tone_off  (file-absolute byte offset to PCM data)
+              byte[+0x03] bit 4        = PCM8B flag (1 = 8-bit PCM, 0 = 16-bit PCM)
++0x06–0x07  LEA    loop end address (not used — sample_count is authoritative for length)
++0x08–0x09  u16 BE = sample_count  (in samples, not bytes)
++0x0A–0x1F  ADSR, volume, LFO, panning — not needed for raw sample extraction
+```
+
+### Key Facts
+
+- **tone_off is file-absolute** — it is a direct byte offset into the BIN file, not a SCSP RAM address. No separate "PCM start" calculation is needed.
+- **Multiple voices can share the same tone_off** — deduplication by `(tone_off, sample_count, pcm8b)` is required.
+- **Sample rate** is not encoded per-sample in the BIN file. Default to **22050 Hz**. The SCSP sequencer adjusts pitch at runtime via OCT/FNS registers on a per-note basis; these are not base sample rates.
+- **Out-of-bounds tone_off values** occur in files that are part of SND bundles (e.g. BOS5BGM.BIN). These reference PCM data loaded from a companion bank into SCSP RAM. Skip gracefully.
+- **8-bit signed PCM** must be converted to unsigned for WAV: `wav_byte = pcm_byte + 128`.
+- **16-bit PCM** is big-endian signed; must be byte-swapped to little-endian for WAV.
+
+### SND Bundle Layout
+
+The EPISODE and INTER SND files are concatenated archives with no header. Known layouts for PDS USA Disc 1 are documented in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`. These must be split at the documented byte offsets before TON banks inside them can be processed.
+
+### Tool
+
+`tools/ton_to_wav.py` — extracts all unique PCM samples from a standalone BIN tone bank to individual WAV files.
+
+```bash
+python tools/ton_to_wav.py --input output/seq_extract/raw/KOGATA.BIN --output output/ton_wav_test/KOGATA/
+```

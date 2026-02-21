@@ -422,7 +422,32 @@ Subtitle extraction: PRG bytecode walking for primary method; MOVIE.DAT group→
 
 ### SEQ / BIN — Sequenced Music
 
-SEQ files are MIDI-like sequence data paired with BIN sample banks.
+SEQ files are MIDI-like sequence data (CyberSound "Saturn Sequence 2.00" format) paired with BIN tone banks (CyberSound TON format).
+
+**TON/BIN format — fully reverse-engineered:**
+
+File layout:
+```
+Bytes 0–7: four u16 BE section offsets: mixer_off, vl_off, peg_off, plfo_off
+Bytes 8..(mixer_off−1): voice offset table — num_voices = (mixer_off − 8) / 2
+[mixer / VL / PEG / PLFO sections — playback metadata, not needed for extraction]
+Voice descriptors starting at plfo_off + 4:
+  Each voice: 4-byte header (byte[2] = nlayers−1, signed) + nlayers × 32-byte layer blocks
+```
+
+Each 32-byte layer block:
+```
++0x00  u16   LSA (loop start — for looped playback, not raw extraction)
++0x02  u32   bits[18:0] & 0x0007FFFF = tone_off (file-absolute byte offset to PCM data)
+             byte[+3] bit 4 = PCM8B flag (1 = 8-bit, 0 = 16-bit)
++0x06  u16   LEA (loop end — use sample_count instead for extraction)
++0x08  u16   sample_count (in samples, not bytes)
++0x0A–0x1F   ADSR, volume, LFO, panning (runtime playback data)
+```
+
+**Critical:** `tone_off` is a direct file-absolute byte offset into the BIN file. No SCSP RAM base address adjustment needed. Sample rate is not encoded; default 22050 Hz.
+
+Tools: `tools/seq_extract.py` (disc extraction + cataloguing), `tools/seq_to_midi.py` (SEQ→MIDI), `tools/ton_to_wav.py` (TON→WAV samples).
 
 ### SCB — Screen/Background Block
 
@@ -447,10 +472,15 @@ VDP2 Color RAM data. Needed for bank-mode textures (modes 0 and 4). Not yet pars
 - CPK video extraction (`tools/cpk_extract.py`) — MP4 output with working audio
 - PRG subtitle extraction — SRT output, muxable into MP4
 - 3D viewer (`tools/model_viewer/`) — Three.js, WebGL, orbit controls, animation playback
+- SEQ disc extractor (`tools/seq_extract.py`) — catalogues and extracts all SEQ/BIN files
+- SEQ→MIDI converter (`tools/seq_to_midi.py`) — full event parsing, multi-song support
+- TON→WAV extractor (`tools/ton_to_wav.py`) — per-instrument WAV samples from BIN tone banks; verified across all 78 standalone BIN files on Disc 1
 
 ### Not Yet Implemented
+- SND bundle splitter — EPISODE1–4 and INTER SND archives need unpacking at known offsets before their TON/SEQ banks can be processed
 - PNB parser → bank-mode texture colours (modes 0, 4 currently greyscale)
 - SCB parser (2D background tiles)
+- PCM audio extraction (`tools/pcm_extract.py`) — 270 voice/SFX files, format TBD
 - Animation keyframe decoder (full playback — partial work done)
 - Multi-hierarchy scene assembly (field maps need PRG placement data)
 - glTF export (preserves skeletal data better than OBJ)
