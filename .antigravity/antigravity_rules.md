@@ -68,11 +68,24 @@ The disc images are in the `ISOs/` directory (gitignored, never commit). Disc 1 
 
 Always use Track 1 for file extraction.
 
+## CyberSound TON Format (verified)
+
+TON-format instrument banks are stored as `.BIN` files on disc, paired with `.SEQ` files by the same base name. Key facts:
+
+- Header: four u16 BE offsets at bytes 0–7 (mixer, VL, PEG, PLFO section offsets)
+- `num_voices = (mixer_off − 8) / 2`; voice offset table at bytes 8..(mixer_off−1)
+- Voice descriptors start at `plfo_off + 4`; each is a 4-byte header + `nlayers × 32` bytes; `header[2]` = nlayers − 1 (signed)
+- Each 32-byte layer: `ru32(lb+2) & 0x0007FFFF` = **tone_off** (file-absolute byte offset to PCM data); `data[lb+3] bit 4` = PCM8B flag; `ru16(lb+8)` = sample_count in samples
+- tone_off is a direct file byte offset — no separate PCM start calculation needed
+- Sample rate is not encoded per-sample; default 22050 Hz
+- See `docs/TECHNICAL_REFERENCE.md` for full format documentation
+- Tool: `tools/ton_to_wav.py` — working and verified across all 78 standalone BIN files on Disc 1
+
 ## What Needs Doing
 
 Check `docs/PROGRESS.md` for the full current status. The immediate open tasks are:
 
-1. **Fix `tools/ton_to_wav.py`** — First pass exists but produces broken output. TON files are Saturn sound sample banks (BIN paired with SEQ). Research the format and fix.
-2. **PNB parser** (palette data) — Unblocks bank-mode textures (modes 0 and 4). These currently render as greyscale.
-3. **PCM audio extraction** — 270 `.PCM` files on disc. Unknown whether they have headers or are raw PCM. Investigate and build `tools/pcm_extract.py`.
-4. **SCB parser** (2D background tilemap data) — VDP2 tilemap format, needed for menu backgrounds and 2D screens.
+1. **PNB parser** (palette data) — Unblocks bank-mode textures (modes 0 and 4). These currently render as greyscale.
+2. **PCM audio extraction** — 270 `.PCM` files on disc. Unknown whether they have headers or are raw PCM. Investigate and build `tools/pcm_extract.py`.
+3. **SCB parser** (2D background tilemap data) — VDP2 tilemap format, needed for menu backgrounds and 2D screens.
+4. **SND bundle splitting** — EPISODE1–4 and INTER12/23/35 archives contain TON+SEQ banks at known offsets (see `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`). Need a tool to unpack them so `ton_to_wav.py` and `seq_to_midi.py` can process the music from those episodes.
