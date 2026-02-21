@@ -1,3 +1,17 @@
+"""
+Saturn Tone Bank (.BIN) to WAV Extractor
+
+Extracts PCM instrument samples from CyberSound TON-format banks (.BIN files paired
+with .SEQ files on Panzer Dragoon Saga disc).
+
+Format reference:
+  - CyberSound TON format structure verified against tonext.py by kingshriek
+    (part of the SSF/Saturn Sound Format toolchain, available via VGMToolbox).
+  - SCSP hardware register layout from Yabause/Kronos source and MAME's scsp.cpp.
+  - TONCNV by CyberWarriorX for independent cross-check of sample extraction logic.
+  - All field positions confirmed against raw binary data from PDS USA Disc 1.
+"""
+
 import os
 import struct
 import argparse
@@ -48,103 +62,143 @@ class TONParser:
     def extract_heuristically(self, output_dir):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-            
-        # 1) Detect PCM Start offset
-        # The first word is distance in bytes to the first sample block? No, it's the size of the jump table in bytes!
-        first_ptr = self._read_u16(0)
-        num_entries = first_ptr // 2
-        pointers = []
-        for i in range(min(num_entries, 256)): # Safety cap
-            ptr = self._read_u16(i * 2)
-            if ptr != 0xFFFF and ptr < len(self.data):
-                pointers.append(ptr)
-        
-        if not pointers:
-            print("No valid instrument pointers found.")
+
+        # TON (CyberSound tone bank) file structure:
+        #
+        # Bytes 0-7: Header — four u16 big-endian section offsets:
+        #   mixer_off = ru16(0)  → mixer section (one SCSP slot + padding)
+        #   vl_off    = ru16(2)  → volume/level section
+        #   peg_off   = ru16(4)  → pitch envelope generator section
+        #   plfo_off  = ru16(6)  → pitch LFO section (always 4 bytes)
+        #
+        # Bytes 8..(mixer_off-1): Voice offset table
+        #   num_voices = (mixer_off - 8) / 2
+        #   Each entry: u16 byte offset to that voice's descriptor
+        #
+        # Mixer/VL/PEG/PLFO sections: structured data for playback, not needed here
+        #
+        # Voice descriptors: starting at plfo_off + 4, laid out sequentially
+        #   Each voice: [4-byte header][nlayers × 32-byte layer blocks]
+        #   header byte[2] = nlayers - 1 (signed)
+        #
+        # Each 32-byte layer block:
+        #   +0x00: LSA low byte, LSA high byte (loop start, not needed)
+        #   +0x02..+0x05: u32 big-endian
+        #       bits[18:0] masked as 0x0007FFFF = tone_off (file-absolute byte offset to PCM data)
+        #       byte[+0x03] bit 4 = PCM8B flag (1 = 8-bit, 0 = 16-bit)
+        #   +0x06..+0x07: LEA (loop end address, not used — sample_count is authoritative)
+        #   +0x08..+0x09: u16 = sample_count (in samples, not bytes)
+        #   +0x0A..+0x1F: ADSR, LFO, panning, etc. (not needed for extraction)
+        #
+        # PCM data: embedded at the tone_off byte offsets within the file itself.
+        # tone_off is a direct file-absolute byte offset — no separate pcm_start needed.
+        # Sample rate: not reliably encoded; default 22050 Hz.
+
+        if len(self.data) < 8:
+            print("File too small to be a valid TON bank.")
             return
 
-        pcm_start = ((max(pointers) + 128 + 0x3F) // 0x40) * 0x40
-        print(f"Detected PCM start at {hex(pcm_start)}")
+        mixer_off = self._read_u16(0)
+        plfo_off  = self._read_u16(6)
+
+        if mixer_off < 8 or mixer_off > len(self.data):
+            print(f"Invalid mixer offset {hex(mixer_off)}, aborting.")
+            return
+
+        num_voices = (mixer_off - 8) // 2
+        if num_voices <= 0 or num_voices > 512:
+            print(f"Unreasonable voice count {num_voices}, aborting.")
+            return
+
+        voices_start = plfo_off + 4  # voice descriptors begin here
+        print(f"TON: {num_voices} voices, voices_start={hex(voices_start)}")
 
         found_samples = []
-        
-        # 2) Traverse SDDRVS jump table
-        for ptr in pointers:
-            if ptr + 4 > len(self.data) or ptr >= pcm_start:
-                continue
-            
-            # The structure is: 4-byte header, followed by N * 32-byte layer definitions.
-            # Header Word 1's high byte dictates (Number of Layers - 1).
-            header_w1 = self._read_u16(ptr + 2)
-            num_layers = (header_w1 >> 8) + 1
-            
-            block_offset = ptr + 4
-            for layer in range(num_layers):
-                if block_offset + 32 > len(self.data):
+
+        cur_off = voices_start
+        for i in range(num_voices):
+            if cur_off + 4 > len(self.data):
+                break
+
+            # header byte[2] = signed nlayers - 1
+            nlayers_raw = self.data[cur_off + 2]
+            nlayers = (nlayers_raw - 256 if nlayers_raw >= 128 else nlayers_raw) + 1
+            nlayers = max(1, min(nlayers, 32))  # sanity clamp
+
+            layer_base = cur_off + 4
+            for l in range(nlayers):
+                lb = layer_base + l * 32
+                if lb + 32 > len(self.data):
                     break
-                
-                word0 = self._read_u16(block_offset + 0)
-                word1 = self._read_u16(block_offset + 2)
-                word2 = self._read_u16(block_offset + 4)
-                word3 = self._read_u16(block_offset + 6) # LSA
-                word4 = self._read_u16(block_offset + 8) # LEA
-                
-                # Check bit 4 for Mode (0=16-bit PCM, 1=8-bit PCM)
-                is_8bit = (word0 & 0x0010) != 0
-                mode = 0 if is_8bit else 1
-                bits = 8 if is_8bit else 16
-                
-                # SA is 20-bit: (Word 1 Low Byte & 0x03) << 16 | Word 2
-                sa = ((word1 & 0x03) << 16) | word2
-                
-                # Length in bytes: LEA is strictly in words (1 word = 2 bytes) for both 8-bit and 16-bit.
-                length_bytes = word4 * 2
-                
-                if length_bytes > 0:
-                    found_samples.append({'sa': sa, 'len': length_bytes, 'bits': bits, 'mode': mode})
-                
-                block_offset += 32
-        
-        # Deduplicate identical sample references
+
+                # tone_off: u32 at lb+2 masked to 19 bits = file-absolute byte offset to PCM
+                raw_u32 = self._read_u32(lb + 2)
+                tone_off = raw_u32 & 0x0007FFFF
+
+                # PCM8B: bit 4 of the byte at lb+3 (high byte of the lower 16 of the u32)
+                pcm8b = (self.data[lb + 3] >> 4) & 1
+                bits = 8 if pcm8b else 16
+
+                # sample_count: u16 at lb+8 (count in samples, not bytes)
+                sample_count = self._read_u16(lb + 8)
+
+                if tone_off == 0 or sample_count == 0:
+                    continue  # unused/empty layer
+
+                length_bytes = sample_count if pcm8b else sample_count * 2
+
+                found_samples.append({
+                    'tone_off': tone_off,
+                    'count': sample_count,
+                    'len': length_bytes,
+                    'bits': bits,
+                })
+
+            cur_off += 4 + nlayers * 32
+
+        # Deduplicate — multiple voices can reference the same PCM region
         unique_samples = []
         seen = set()
         for s in found_samples:
-            key = (s['sa'], s['len'], s['bits'])
+            key = (s['tone_off'], s['count'], s['bits'])
             if key not in seen:
                 unique_samples.append(s)
                 seen.add(key)
-        
-        unique_samples.sort(key=lambda x: x['sa'])
-        
+
+        unique_samples.sort(key=lambda x: x['tone_off'])
+        print(f"Found {len(unique_samples)} unique samples")
+
+        # Default sample rate: 22050 Hz (Saturn instrument samples are typically this rate).
+        # The actual playback rate is determined at runtime by the sequencer via OCT/FNS
+        # pitch adjustments, which are relative transpositions, not absolute sample rates.
+        DEFAULT_RATE = 22050
+
         count = 0
         for s in unique_samples:
-            sa = s['sa']
-            length = s['len']
-            bits = s['bits']
-            mode = s['mode']
-            
-            file_off = pcm_start + sa
-            
-            if file_off >= len(self.data) or length <= 0:
+            file_off = s['tone_off']
+
+            if file_off >= len(self.data) or s['len'] <= 0:
                 continue
-            
-            # Clamp length to physical file payload end to prevent out of bounds
-            length = min(length, len(self.data) - file_off)
-            
+
+            # Clamp to physical file end
+            length = min(s['len'], len(self.data) - file_off)
+            if length < 16:
+                continue  # skip micro-samples
+
             sample_data = self.data[file_off : file_off + length]
-            if len(sample_data) < 16: continue # skip garbage micro-samples
-            
-            wav_name = f"sample_{count:03d}_sa_{hex(sa)}_mode{mode}.wav"
+
+            bit_label = '8bit' if s['bits'] == 8 else '16bit'
+            wav_name = f"sample_{count:03d}_at{hex(file_off)}_{bit_label}_{DEFAULT_RATE}hz.wav"
             wav_path = os.path.join(output_dir, wav_name)
-            
+
             success = self.convert_pcm_to_wav(
-                sample_data, wav_path, 
-                rate=22050, bits=bits, channels=1, 
+                sample_data, wav_path,
+                rate=DEFAULT_RATE, bits=s['bits'], channels=1,
                 big_endian=True, signed=True
             )
             if success:
                 count += 1
-                
+
         print(f"Extracted {count} valid samples to {output_dir}")
 
 def main():

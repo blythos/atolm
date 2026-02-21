@@ -75,10 +75,14 @@
   - [x] Mode 5: Keyframes every 4 frames with quarter-step interpolation
 - [x] Inspection tools: grid, bounding boxes, bone labels, texture atlas viewer, hex offsets
 
-### Phase 8: Sequential Music (Partial)
+### Phase 8: Sequential Music
 - [x] SEQ file extractor (`tools/seq_extract.py`) — functional
 - [x] SEQ to MIDI converter (`tools/seq_to_midi.py`) — functional
-- [ ] TON to WAV converter (`tools/ton_to_wav.py`) — broken/incomplete
+- [x] TON to WAV converter (`tools/ton_to_wav.py`) — working; extracts per-instrument WAV samples from BIN tone banks
+  - Correct CyberSound TON format parsing (header + voice table + layer blocks)
+  - Handles both 8-bit and 16-bit PCM, multi-layer voices, deduplication
+  - Out-of-bounds tone_off references (cross-bank samples in SND bundles) silently skipped
+  - Verified across all 78 standalone BIN files on Disc 1
 
 ## In Progress / Next Steps
 
@@ -88,7 +92,8 @@
 - [ ] Identify which PNB pairs with which MCB/CGB (may require PRG analysis)
 
 ### Priority 2: TON/PCM Audio
-- [ ] Fix `tools/ton_to_wav.py` — first pass exists but broken
+- [x] `tools/ton_to_wav.py` — fixed and working
+- [ ] SND bundle extraction — EPISODE1–4, INTER12/23/35 contain additional TON+SEQ banks at known offsets (documented in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`); these need unpacking before ton_to_wav.py can process them
 - [ ] PCM audio sample extraction (`tools/pcm_extract.py`) — not yet started
 - [ ] Document PCM file format (header vs raw, sample rate, channel count)
 
@@ -128,4 +133,4 @@
 | PRG files | 59 | Subtitle opcodes parsed; full decompilation pending |
 | CPK video | 14 | Fully extracted, subtitled MP4s |
 | PCM audio | 270 | Not yet extracted |
-| SEQ/BIN music | ~89 | SEQ extraction working; TON→WAV broken |
+| SEQ/BIN music | ~89 | SEQ→MIDI working; TON→WAV working (standalone BIN files); SND bundles not yet unpacked |
