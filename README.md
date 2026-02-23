@@ -80,15 +80,6 @@ python tools/model_exporter.py --disc path/to/disc1.bin --asset DRAGON0 --output
 - **Team Andromeda** — for creating one of the most remarkable games ever made.
 - **The Panzer Dragoon community** — [Panzer Dragoon Legacy](https://www.panzerdragoonlegacy.com/), [Will of the Ancients](https://www.willoftheancients.com/) — decades of keeping the flame alive.
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). The project needs:
-- **SH-2 reverse engineers** — decompiling PRG overlays is the critical path
-- **Saturn hardware experts** — VDP1/VDP2 accuracy, SCSP audio
-- **C++ developers** — for the reimplementation engine
-- **Testers** — comparing output against emulator reference runs
-- **Translators** — PDS was only released in English and Japanese
-
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
