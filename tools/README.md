@@ -204,14 +204,14 @@ These require manual splitting at documented byte offsets before the TON and SEQ
 
 ## Font Extraction
 
-PDS uses VDP2 bitmap fonts stored in `.FNT` files — 16×16 1bpp glyph bitmaps for in-game text (kanji, kana, and Latin characters).
+PDS uses VDP2 bitmap fonts stored in `.FNT` files — 16×16 1bpp glyph bitmaps. **All FNT glyphs are Japanese kanji/kana** — no Latin/Roman characters exist in this format. English text visible in FMV cutscenes is rendered via a separate system (likely VDP1 sprites or baked into CPK video frames).
 
 ```bash
 # List all FNT files on disc
 python tools/fnt_extract.py --iso "path/to/disc1.bin" --scan
 
-# Extract all fonts
-python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --output output/fonts/
+# Extract all fonts + built-in kernel font from COMMON.DAT
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --kernel --output output/fonts/
 
 # Extract a specific font
 python tools/fnt_extract.py --iso "path/to/disc1.bin" --name MENU.FNT --output output/fonts/
@@ -228,7 +228,15 @@ python tools/fnt_extract.py --input raw/MENU.FNT --output output/fonts/
 - `{NAME}_font.json` — metadata (glyph count, font type, grid dimensions)
 - Optional: `{NAME}/glyph_NNN.png` — individual glyphs (with `--individual`)
 
-**Font categories on Disc 1 (65 files):** FLD (field UI), BTL (battle), EVT (cutscene/event), town-specific (EVTCAMP, EVTCARA, EVTZOAH, etc.), system (MENU, ITEM, SAVE, SHOP), WORLDMAP, MENUEN, MENUBK.
+**FNT categories on Disc 1 (65 files):**
+
+| Prefix | Count | Content |
+|--------|-------|---------|
+| FLD_*  | 13    | Field area UI (NPC/location names) |
+| BTL_*  | 26    | Battle encounter text |
+| EVT*   | 18    | Event/cutscene/town dialogue |
+| System | 4     | MENU, ITEM, SAVE, SHOP |
+| Other  | 4     | MENUEN, MENUBK, WORLDMAP, FLAGEDIT |
 
 ## Known Limitations
 

@@ -446,9 +446,11 @@ Pattern: `FLDCMN` + area base file + numbered subfields.
   ```
   Each glyph = 16 rows × 16 columns, 1bpp (MSB = leftmost pixel). 32 bytes per glyph.
   The engine applies edge-detected anti-aliasing when loading to VDP2 VRAM (`loadCharacterToVdp2`).
-  Glyphs are Japanese kanji/kana; mapping is context-specific per use site.
+  All glyphs are Japanese kanji/kana; mapping is context-specific per game scene.
+  English text visible in FMV subtitles uses a separate rendering system (not FNT).
+  A 256-glyph system font also exists in `COMMON.DAT` at offset `0x010E98` (also Japanese).
 
-  **Tool:** `tools/fnt_extract.py` — extracts all FNT files from disc to PNG sprite sheets + JSON.
+  **Tool:** `tools/fnt_extract.py` — extracts all FNT files + kernel font to PNG sprite sheets + JSON.
 - **EPK files** (E006.EPK, E011.EPK, etc.): **Interactive cutscene streaming containers** — NOT
   SEQ/TON audio bundles. Each contains up to 16 synchronized entity streams (3D models, camera,
   audio). Format not yet decoded. These are the in-engine cinematic sequences in town areas.

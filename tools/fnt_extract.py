@@ -4,18 +4,35 @@
 Extracts VDP2 bitmap font glyphs from .FNT files and exports them as
 PNG sprite sheets + JSON metadata.
 
-FNT format (all u16 big-endian):
+IMPORTANT: All FNT glyphs are Japanese kanji/kana — no Latin/Roman
+characters exist in this format. The game uses a PDS-specific character
+encoding (not ASCII). English text visible in FMV subtitles is rendered
+via a separate system (likely VDP1 sprites or baked into CPK video
+frames), not through FNT files.
+
+FNT categories on disc (65 files on Disc 1):
+  FLD_*    — Field area UI text (13 files)
+  BTL_*    — Battle encounter text (26 files)
+  EVT*     — Event/cutscene dialogue (18 files)
+  MENU/ITEM/SAVE/SHOP — System UI (4 files)
+  MENUEN/MENUBK/WORLDMAP/FLAGEDIT — Other (4 files)
+
+The --kernel flag also extracts the 256-glyph built-in system font
+from COMMON.DAT (also Japanese kanji/kana).
+
+FNT binary format (all u16 big-endian):
   Offset 0x00: u16  glyph_count
   Offset 0x02: u16  font_type (4 = normal, 5 = extended/sprites)
-  Offset 0x04-0x0F: u16[6] reserved (header padding)
+  Offset 0x04-0x0F: u16[6] reserved (header padding, 16 bytes total)
   Offset 0x10: u16[16 * glyph_count] glyph bitmaps (1bpp, 16x16 each)
 
-Each glyph = 16 rows of u16, MSB = leftmost pixel.
+Each glyph = 16 rows of u16, MSB = leftmost pixel, 32 bytes per glyph.
 Derived from yaz0r's Azel decompilation (loadFnt, resetVdp2StringsSub1,
 loadCharacterToVdp2 in VDP2.cpp).
 
 Usage:
   python tools/fnt_extract.py --iso disc.bin --all --output output/fonts/
+  python tools/fnt_extract.py --iso disc.bin --all --kernel --output output/fonts/
   python tools/fnt_extract.py --iso disc.bin --name MENU.FNT --output output/fonts/
   python tools/fnt_extract.py --input raw/MENU.FNT --output output/fonts/
 """
@@ -59,6 +76,10 @@ HEADER_SIZE = 16  # 8 u16 values
 GLYPH_ROWS = 16
 GLYPH_COLS = 16
 GLYPH_U16S = 16   # 16 u16 values per glyph
+
+# Offset of the built-in system font in COMMON.DAT
+# 256 glyphs, type 5 (extended/sprites), Japanese kanji/kana
+KERNEL_FONT_OFFSET = 0x010E98
 
 def parse_fnt(data):
     """Parse an FNT file and return (glyph_count, font_type, list_of_glyphs).
@@ -178,8 +199,9 @@ def extract_and_save(name, data, output_dir, individual=False):
         'sheet_file': f"{basename}_font.png",
         'file_size_bytes': len(data),
         'char_mapping_note': (
-            'Glyphs typically map to ASCII starting from 0x20 (space). '
-            'Glyph index N corresponds to character code 0x20 + N.'
+            'Glyphs are Japanese kanji/kana with PDS-specific encoding. '
+            'Character mapping is context-dependent per game scene. '
+            'The game engine maps text bytes to glyph indices at runtime.'
         ),
     }
     meta_path = os.path.join(output_dir, f"{basename}_font.json")
@@ -199,6 +221,8 @@ def main():
 
     parser.add_argument('--name', help='FNT filename on disc (e.g. MENU.FNT)')
     parser.add_argument('--all', action='store_true', help='Extract all FNT files from disc')
+    parser.add_argument('--kernel', action='store_true',
+                        help='Also extract the built-in system font from COMMON.DAT')
     parser.add_argument('--individual', action='store_true',
                         help='Also export individual glyph PNGs')
     parser.add_argument('--output', '-o', default='output/fonts/',
@@ -267,6 +291,26 @@ def main():
             print(f"  {name:25s}  {gc:4d} glyphs  type {ft}")
         except ValueError as e:
             print(f"  {name:25s}  ERROR: {e}")
+
+    # Extract kernel font from COMMON.DAT if requested
+    if args.kernel:
+        all_files = iso.list_files()
+        common_files = [f for f in all_files if f['name'].upper().endswith('COMMON.DAT')]
+        if common_files:
+            common_data = iso.extract_file(common_files[0]['lba'], common_files[0]['size'])
+            if len(common_data) > KERNEL_FONT_OFFSET + HEADER_SIZE:
+                kcount = struct.unpack('>H', common_data[KERNEL_FONT_OFFSET:KERNEL_FONT_OFFSET+2])[0]
+                ksize = HEADER_SIZE + kcount * GLYPH_U16S * 2
+                kdata = common_data[KERNEL_FONT_OFFSET:KERNEL_FONT_OFFSET+ksize]
+                try:
+                    gc, ft = extract_and_save('KERNEL_FONT.FNT', kdata, args.output, args.individual)
+                    print(f"  {'KERNEL_FONT (COMMON.DAT)':25s}  {gc:4d} glyphs  type {ft}")
+                except ValueError as e:
+                    print(f"  {'KERNEL_FONT':25s}  ERROR: {e}")
+            else:
+                print("  KERNEL_FONT: COMMON.DAT too small")
+        else:
+            print("  KERNEL_FONT: COMMON.DAT not found on disc")
 
     iso.close()
     print(f"\nDone. Output in {args.output}")
