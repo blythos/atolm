@@ -88,4 +88,10 @@ Check `docs/PROGRESS.md` for the full current status. The immediate open tasks a
 1. **PNB parser** (palette data) — Unblocks bank-mode textures (modes 0 and 4). These currently render as greyscale.
 2. **PCM audio extraction** — 270 `.PCM` files on disc. Unknown whether they have headers or are raw PCM. Investigate and build `tools/pcm_extract.py`.
 3. **SCB parser** (2D background tilemap data) — VDP2 tilemap format, needed for menu backgrounds and 2D screens.
-4. **SND bundle splitting** — EPISODE1–4 and INTER12/23/35 archives contain TON+SEQ banks at known offsets (see `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`). Need a tool to unpack them so `ton_to_wav.py` and `seq_to_midi.py` can process the music from those episodes.
+4. **PCM audio extraction** — 270 `.PCM` files on disc contain voice acting and SFX. Format is
+   under investigation (unknown whether they have a header or are raw PCM). Build
+   `tools/pcm_extract.py`. Do NOT build a SND bundle splitter — EPISODE/INTER SND bundles do not
+   exist on PDS discs. The SEQ/BIN music system is fully resolved; see `tools/snd_split.py`.
+
+Note: `tools/snd_split.py` (new) catalogues all SEQ->BIN pairs across all four discs and handles
+shared-bank cases. AREAMAP.SND is a runtime area-music command stream, not a bundle archive.

@@ -403,18 +403,87 @@ Working extractor: `tools/cpk_extract.py`
 
 ### PRG — SH-2 Executable Overlays
 
-Bytecode scripts controlling scene logic, FMV playback, subtitle display. Interpreter reverse-engineered from `AzelLib/town/townScript.cpp`.
+Bytecode scripts serving two roles: (1) FMV/cutscene control scripts (~50–100 KB) with subtitle opcodes and frame-sync commands, and (2) field area orchestration scripts (165–410 KB) containing NPC placement, scene logic, and serialized binary layout data (DataTable2/3, Grid1/2).
 
-**Key subtitle opcodes:**
-- `0x2E` — Frame sync (subtitle timing)
-- `0x1B` — Draw string (subtitle on)
-- `0x1D` — Clear string (subtitle off)
-- `0x24` — Timed string (auto-clearing)
-- `0x07` — FMV start (argument: CPK filename pointer)
+Interpreter reverse-engineered from `AzelLib/town/townScript.cpp`.
 
-String pointers use double indirection matching `readSaturnString()` in yaz0r's code. Text is plain null-terminated ASCII in the USA version.
+**Instruction format:** 1-byte opcode + operands. u8 args are byte-immediate; s16/u16 align to next even address; u32 align to next 4-byte address. String pointers use double indirection (Saturn RAM pointer -> null-terminated ASCII string). USA version text is plain ASCII.
 
-Subtitle extraction: PRG bytecode walking for primary method; MOVIE.DAT group→CPK mapping as fallback.
+**Complete opcode table:**
+
+| Opcode | Name | Operands |
+|--------|------|----------|
+| 0x01 | end | none |
+| 0x02 | wait | u16 frame_count |
+| 0x03 | jump | u32 target_ea |
+| 0x05 | if_false_jump | u32 target_ea |
+| 0x06 | callScript | u32 target_ea |
+| 0x07 | callNative | u8 num_args, u32 func_ea, [num_args x u32] |
+| 0x08 | equal | s16 value |
+| 0x09 | notEqual | s16 value |
+| 0x0A | greater | s16 value |
+| 0x0B | greaterEq | s16 value |
+| 0x0C | less | s16 value |
+| 0x0D | lessEq | s16 value |
+| 0x0F | setBit | s16 bit_index |
+| 0x11 | getBit | s16 bit_index |
+| 0x12 | readPackedBits | s8 num_bits, s16 var_offset |
+| 0x14 | addToPackedBits | s8 num_bits, s16 var_offset, s16 addend |
+| 0x15 | switch | s8 arg, u8 num_cases, [num_cases x u32 jump_table] |
+| 0x18 | setResult | none |
+| 0x19 | addCinematicBars | none |
+| 0x1A | removeCinematicBars | none |
+| 0x1B | drawString | u32 string_ptr |
+| 0x1D | clearString | none |
+| 0x1F | waitNative | u8 num_args, u32 func_ea, [num_args x u32] |
+| 0x20 | waitFade | none |
+| 0x21 | playSystemSound | s8 sfx_id |
+| 0x22 | playPCM | s8 pcm_file_index |
+| 0x24 | displayTimedString | s16 duration, u32 string_ptr |
+| 0x27 | multiChoice | s8 num_choices, [num_choices x u32 choice_ptrs] |
+| 0x29 | getInventory | s16 item_index |
+| 0x2B | addInventory | s8 count, s16 item_index |
+| 0x2E | cutsceneFrameSync | s16 frame_number |
+| 0x30 | receiveItem | s16 unk, s16 item_index, s16 count |
+
+Note: game-state bit indices < 1000 have 3334 added automatically by the interpreter.
+
+**Subtitle extraction:** PRG bytecode walking (primary); MOVIE.DAT group->CPK mapping (fallback). `tools/extract_subtitles.py` already implements all 30 opcodes.
+
+**Field PRG binary data sections (FLD_*.PRG only):**
+
+Field PRGs are ~85% bytecode + ~15% binary layout data past the final `0x01` (end) opcode. The `extract_subtitles.py` 0x2E-cluster heuristic does NOT work for field PRGs — a dedicated parser is needed.
+
+- **DataTable3**: grid config header (0x24 bytes opaque + grid_width u32, grid_height u32, cell_size_x u32, cell_size_z u32 in 16.16 FP)
+- **Grid1**: static geometry — entries of 0x18 bytes (u32 model_ref, u16[5] MCB offsets, s32[3] XYZ, s16[3] rotation, s16 flags); model_ref==0 terminates each cell
+- **Grid2**: billboard/sprite instances — 0x10 bytes (u32 model_ref, s32[3] XYZ); model_ref==0 terminates
+- **DataTable2**: NPC/object placement — 0x20 bytes (u32 entity_type_ptr, s32[3] XYZ, s16[3] rotation, s16 pad, s32 param, u32 model_ref); entity_type_ptr==0 terminates
+
+All XYZ positions are 16.16 fixed-point; viewer divide by 256.
+
+**Field area ID -> PRG mapping (from `AzelLib/common.cpp`):**
+
+| Area | PRG | Subfields |
+|------|-----|-----------|
+| A0, D5 | FLD_D5.PRG | 1 |
+| A2, A3 | FLD_A3.PRG | 13 (A3_0-A3_C) |
+| A5 | FLD_A5.PRG | 13 (A5_0-A5_C) |
+| A7 | FLD_A7.PRG | 3 |
+| B1 | FLD_B1.PRG | 2 |
+| B2, B3 | FLD_B2.PRG | 4 |
+| B4, B5 | FLD_B5.PRG | 7 |
+| B6 | FLD_B6.PRG | 10 |
+| C2 | FLD_C2.PRG | 3 |
+| C3, C4 | FLD_C4.PRG | 9 |
+| C8, D4 | FLD_C8.PRG | 32 (largest: 410 KB) |
+| D2 | FLD_D2.PRG | 2 |
+| D3 | FLD_D3.PRG | 1 |
+
+MCB/CGB pattern per area: `FLDCMN` + area base file + numbered subfields (e.g. FLD_A3_0 through FLD_A3_3 for A3).
+
+**Other field file types:**
+- **FNT** (12 on disc): per-character metrics for in-area UI
+- **EPK** (E006.EPK etc.): interactive cutscene streaming containers (3D models + camera + audio) — NOT SEQ/TON audio bundles; format not yet decoded
 
 ### PCM — Audio Samples
 
@@ -445,9 +514,45 @@ Each 32-byte layer block:
 +0x0A–0x1F   ADSR, volume, LFO, panning (runtime playback data)
 ```
 
-**Critical:** `tone_off` is a direct file-absolute byte offset into the BIN file. No SCSP RAM base address adjustment needed. Sample rate is not encoded; default 22050 Hz.
+**Critical:** `tone_off` is a direct file-absolute byte offset into the BIN file. No SCSP RAM base address adjustment needed.
 
-Tools: `tools/seq_extract.py` (disc extraction + cataloguing), `tools/seq_to_midi.py` (SEQ→MIDI), `tools/ton_to_wav.py` (TON→WAV samples).
+**Sample rate** is encoded per-layer via OCT/FNS registers (MAME scsp.cpp formula):
+```python
+oct_signed = (oct_raw ^ 8) - 8       # 4-bit unsigned XOR 8 → signed −8..+7
+sample_rate = int(44100 * (2 ** oct_signed) * (1 + fns / 1024))
+sample_rate = max(1000, min(sample_rate, 96000))   # clamp for extremes
+```
+
+**Layer key range** (first two bytes of each 32-byte layer block):
+```
++0x00  u8   lo_key   MIDI note lower bound (0 if full range)
++0x01  u8   hi_key   MIDI note upper bound (127 if full range)
+```
+
+**MIDI voice mapping:** MIDI program N → TON voice N. Each voice's layers define key-split zones. Voice index = program change value in SEQ data. This is 1:1 — 10 voices = 10 programs 0–9.
+
+**SEQ multi-song file layout (CRITICAL — fixed bug here):**
+```
+[0:2]   u16  num_songs
+[2:6]   u32  song_pointer[0]   ← ABSOLUTE byte offset to song[0]'s header
+[6:10]  u32  song_pointer[1]   (if num_songs > 1)
+...
+```
+Each song header at the pointed offset:
+```
++0x00  u16  resolution        (MIDI ticks/beat — e.g. 48, 384, 480)
++0x02  u16  num_tempo_events
++0x04  u16  data_offset       (relative to song header start)
++0x06  u16  tempo_loop_offset
+[num_tempo_events × 8 bytes: u32 tick + u32 microseconds_per_beat]
+[sequence data at song_start + data_offset]
+```
+
+**CRITICAL BUG FIXED:** Old code read song pointers as 3-byte (`b'\x00' + data[2:5]`), giving ptr=0 for all files, making `resolution = num_songs` (1, 2, 3...) instead of the actual value (48, 480, 384). With resolution=1, all notes played in near-zero time. Fix: read as full 4-byte `struct.unpack('>I', data[2:6])[0]`.
+
+Confirmed resolutions: TITLE.SEQ = 48, A3BGM = 48, CAMPBGM = 480, A3BOSS = 384, TOWNBGM = 48.
+
+Tools: `tools/seq_extract.py` (disc extraction + cataloguing), `tools/seq_to_midi.py` (SEQ→MIDI), `tools/ton_to_wav.py` (TON→WAV samples), `tools/make_sf2.py` (BIN+WAVs→SF2 SoundFont).
 
 ### SCB — Screen/Background Block
 
@@ -475,9 +580,13 @@ VDP2 Color RAM data. Needed for bank-mode textures (modes 0 and 4). Not yet pars
 - SEQ disc extractor (`tools/seq_extract.py`) — catalogues and extracts all SEQ/BIN files
 - SEQ→MIDI converter (`tools/seq_to_midi.py`) — full event parsing, multi-song support
 - TON→WAV extractor (`tools/ton_to_wav.py`) — per-instrument WAV samples from BIN tone banks; verified across all 78 standalone BIN files on Disc 1
+- SEQ/BIN catalogue & extractor (`tools/snd_split.py`) — resolves all 86 SEQ→BIN pairs across all 4 discs (including 5 shared-bank cases), parses AREAMAP.SND, invokes ton_to_wav + seq_to_midi for batch conversion
+- Sound catalogue builder (`tools/build_sound_catalogue.py`) — parses SNDTEST.PRG for 75 official track names; maps 57 to SEQ files on Disc 1; exposes 29 extra (SFX/battle) tracks for identification; outputs output/sound_catalogue.json
+- SF2 SoundFont builder (`tools/make_sf2.py`) — converts BIN tone banks + extracted WAVs into standard SF2 2.01 files; no external libraries required; maps voice N → MIDI program N with correct key-split zones and per-sample OCT/FNS pitch rates; batch-converts all 84 disc1 banks to `output/sf2/` (16.2 MB total)
+- Sound test browser engine (`tools/sound_test_server.py` + `tools/sound_test.html`) — Python HTTP server (stdlib only, port 8765); custom Tone.js MIDI player using Saturn WAV samples as instruments (correct timbres, no GM soundfont); in-browser MIDI binary parser; Web Audio API waveform/spectrum visualiser; volume slider; pitch shift for WAV preview; progress bar with elapsed/total time; search/filter; confidence badges
 
 ### Not Yet Implemented
-- SND bundle splitter — EPISODE1–4 and INTER SND archives need unpacking at known offsets before their TON/SEQ banks can be processed
+- ~~SND bundle splitter~~ — **INVESTIGATED AND RESOLVED**: EPISODE1–4 and INTER SND files do NOT exist on any disc. The only .SND file is AREAMAP.SND (276 bytes, a runtime sound driver area-music command stream). All music is in standalone SEQ+BIN pairs, fully catalogued by snd_split.py.
 - PNB parser → bank-mode texture colours (modes 0, 4 currently greyscale)
 - SCB parser (2D background tiles)
 - PCM audio extraction (`tools/pcm_extract.py`) — 270 voice/SFX files, format TBD

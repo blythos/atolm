@@ -88,11 +88,19 @@ class TONParser:
         #       byte[+0x03] bit 4 = PCM8B flag (1 = 8-bit, 0 = 16-bit)
         #   +0x06..+0x07: LEA (loop end address, not used — sample_count is authoritative)
         #   +0x08..+0x09: u16 = sample_count (in samples, not bytes)
-        #   +0x0A..+0x1F: ADSR, LFO, panning, etc. (not needed for extraction)
+        #   +0x0A..+0x1F: SCSP slot register data:
+        #     +0x0A u16: bits[14:11]=OCT (4-bit signed via XOR 8), bits[9:0]=FNS (10-bit)
+        #     +0x0C u16: LFO controls (LFORE, LFOF, PLFOWS, PLFOS, ALFOWS, ALFOS)
+        #     +0x0E u16: ISEL/IMXL (input select and mix level)
+        #     +0x10 u16: DISDL/DIPAN/EFSDL/EFPAN (panning and effect send)
+        #     +0x12..+0x1F: additional envelope/control bytes
+        #
+        # OCT/FNS → sample rate (from MAME scsp.cpp):
+        #   oct_signed = (oct_raw XOR 8) - 8    [converts 4-bit unsigned to signed -8..+7]
+        #   sample_rate = 44100 * 2^oct_signed * (1 + fns/1024)
         #
         # PCM data: embedded at the tone_off byte offsets within the file itself.
         # tone_off is a direct file-absolute byte offset — no separate pcm_start needed.
-        # Sample rate: not reliably encoded; default 22050 Hz.
 
         if len(self.data) < 8:
             print("File too small to be a valid TON bank.")
@@ -145,18 +153,31 @@ class TONParser:
                 if tone_off == 0 or sample_count == 0:
                     continue  # unused/empty layer
 
+                # OCT/FNS pitch word at lb+0x0A → compute playback sample rate.
+                # OCT is 4-bit stored as unsigned, XOR 8 to get signed (-8..+7).
+                # FNS is 10-bit unsigned fractional pitch within the octave.
+                # Formula from MAME scsp.cpp: rate = 44100 * 2^oct_signed * (1 + fns/1024)
+                pitch_word = self._read_u16(lb + 0x0A)
+                oct_raw  = (pitch_word >> 11) & 0xF
+                fns      = pitch_word & 0x3FF
+                oct_signed = (oct_raw ^ 8) - 8
+                sample_rate = int(44100 * (2 ** oct_signed) * (1 + fns / 1024))
+                sample_rate = max(1000, min(sample_rate, 96000))  # sanity clamp
+
                 length_bytes = sample_count if pcm8b else sample_count * 2
 
                 found_samples.append({
-                    'tone_off': tone_off,
-                    'count': sample_count,
-                    'len': length_bytes,
-                    'bits': bits,
+                    'tone_off':    tone_off,
+                    'count':       sample_count,
+                    'len':         length_bytes,
+                    'bits':        bits,
+                    'sample_rate': sample_rate,
                 })
 
             cur_off += 4 + nlayers * 32
 
-        # Deduplicate — multiple voices can reference the same PCM region
+        # Deduplicate — multiple voices can reference the same PCM region.
+        # Keep the first (lowest-indexed) sample_rate seen for each unique PCM region.
         unique_samples = []
         seen = set()
         for s in found_samples:
@@ -167,11 +188,6 @@ class TONParser:
 
         unique_samples.sort(key=lambda x: x['tone_off'])
         print(f"Found {len(unique_samples)} unique samples")
-
-        # Default sample rate: 22050 Hz (Saturn instrument samples are typically this rate).
-        # The actual playback rate is determined at runtime by the sequencer via OCT/FNS
-        # pitch adjustments, which are relative transpositions, not absolute sample rates.
-        DEFAULT_RATE = 22050
 
         count = 0
         for s in unique_samples:
@@ -186,14 +202,15 @@ class TONParser:
                 continue  # skip micro-samples
 
             sample_data = self.data[file_off : file_off + length]
+            rate = s['sample_rate']
 
             bit_label = '8bit' if s['bits'] == 8 else '16bit'
-            wav_name = f"sample_{count:03d}_at{hex(file_off)}_{bit_label}_{DEFAULT_RATE}hz.wav"
+            wav_name = f"sample_{count:03d}_at{hex(file_off)}_{bit_label}_{rate}hz.wav"
             wav_path = os.path.join(output_dir, wav_name)
 
             success = self.convert_pcm_to_wav(
                 sample_data, wav_path,
-                rate=DEFAULT_RATE, bits=s['bits'], channels=1,
+                rate=rate, bits=s['bits'], channels=1,
                 big_endian=True, signed=True
             )
             if success:

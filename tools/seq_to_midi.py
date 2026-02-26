@@ -51,7 +51,7 @@ class SEQParser:
         
         # Add tempo events
         last_tick = 0
-        for tempo in self.tempo_events:
+        for tempo in sorted(self.tempo_events, key=lambda t: t["tick"]):
             delta = tempo['tick'] - last_tick
             track.append(MetaMessage('set_tempo', tempo=tempo['mspb'], time=delta))
             last_tick = tempo['tick']
@@ -149,13 +149,19 @@ class SEQParser:
                 # Ensure values are MIDI compliant (0-127)
                 def clamp(val, name):
                     if val < 0 or val > 127:
-                        # print(f"Clamping {name}: {val} to {max(0, min(127, val))}")
                         return max(0, min(127, val))
                     return val
 
                 note_midi = clamp(note, "note")
                 vel_midi = clamp(velocity, "velocity")
-                
+
+                # Note bytes are direct MIDI note numbers (0-127). No transposition needed.
+                # Low notes (0-23) are legitimate — they may be used for drums/SFX or very
+                # low bass instruments in the Saturn tone bank. Sending them verbatim is correct.
+                # "Pitch outside valid range" warnings from the GM soundfont player are cosmetic
+                # (the soundfont lacks samples for those notes on those GM programs) and do not
+                # indicate an encoding error.
+
                 # Write Note On
                 write_event(track, safe_msg('note_on', channel=channel, note=note_midi, velocity=vel_midi), clock)
                 
@@ -317,17 +323,21 @@ def main():
 
     input_filename = os.path.basename(args.input)
     
-    # Check for multi-song bank
+    # SEQ multi-song layout:
+    #   [0:2]  u16 num_songs  (big-endian)
+    #   [2:6]  u32 song_pointer[0]  (big-endian, 4 bytes, absolute file offset)
+    #   [6:10] u32 song_pointer[1]  (if num_songs > 1)
+    #   ...
+    # Each pointer points to a song header: u16 resolution, u16 num_tempo_events, ...
     num_songs = struct.unpack('>H', data[0:2])[0]
     song_pointers = []
-    if num_songs > 0 and num_songs < 256: # Heuristic: unlikely to have >256 songs
+    if 0 < num_songs < 256:  # Sanity check: unlikely to have >256 songs
         for i in range(num_songs):
-            ptr = struct.unpack('>I', b'\x00' + data[2 + i*3 : 2 + i*3 + 3])[0]
+            ptr = struct.unpack('>I', data[2 + i*4 : 6 + i*4])[0]  # 4-byte u32, not 3-byte
             song_pointers.append(ptr)
     else:
-        # Fallback: maybe it's just a single song starting at 0 or 6?
-        # Let's try to find the resolution at offset 0 or 6
-        song_pointers = [0, 6] 
+        # Fallback: single-song files that don't have the standard header
+        song_pointers = [6]
 
     for i, ptr in enumerate(song_pointers):
         if ptr >= len(data): continue
