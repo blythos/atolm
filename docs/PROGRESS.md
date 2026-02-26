@@ -120,7 +120,7 @@ Remaining:
 ### Priority 4: 2D Assets
 - [ ] SCB format parser (VDP2 tilemap/background data)
 - [ ] PNB + SCB combined decoder for menu screens, backgrounds
-- [ ] Font extraction (.FNT files)
+- [x] Font extraction (`tools/fnt_extract.py`) — all 65 FNT files on Disc 1 extracted (16×16 1bpp glyph bitmaps → PNG sprite sheets + JSON)
 
 ### Priority 5: glTF Export
 - [ ] Export to glTF with embedded skeleton — better than OBJ for animated assets

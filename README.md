@@ -19,7 +19,7 @@ The goal is a native modern port: an application that loads the original disc im
 | **Sequenced Music** | ✅ 86 SEQ→MIDI conversions; 89 BIN tone banks→WAV instrument samples; official track names from SNDTEST.PRG |
 | **PCM Audio** | ⬜ 270 PCM files on disc — extractor not yet started |
 | **2D Assets** | ⬜ 163 SCB + 162 PNB files — parsers not yet started |
-| **Fonts** | ⬜ FNT files — not yet started |
+| **Fonts** | ✅ All 65 FNT files extracted — 16×16 1bpp glyph bitmaps → PNG sprite sheets + JSON |
 | **3D Viewer** | ✅ Browser-based Three.js viewer with textured models, animation playback, and asset browser |
 | **Sound Test** | ✅ Browser-based MIDI playback + WAV auditioning with search and filtering |
 

@@ -433,9 +433,22 @@ Pattern: `FLDCMN` + area base file + numbered subfields.
 
 ### Other field-related file types
 
-- **FNT files** (12 on disc): Per-character metrics tables for in-area UI. Format: small header
-  (2-byte magic, 2-byte count) followed by per-character width/height/advance data. FLD_T0.FNT
-  is used by FLD_C8 (Tower interior areas C8 and D4).
+- **FNT files** (65 on Disc 1): VDP2 bitmap font glyph data for in-game text rendering.
+  Categories: FLD (field UI), BTL (battle), EVT (cutscene/event), town-specific
+  (EVTCAMP, EVTCARA, EVTZOAH), system (MENU, ITEM, SAVE, SHOP), WORLDMAP, MENUEN, MENUBK.
+
+  **Format** (all u16 big-endian):
+  ```
+  Offset 0x00: u16  glyph_count
+  Offset 0x02: u16  font_type  (4 = normal, 5 = extended/sprites)
+  Offset 0x04-0x0F: u16[6]  reserved (header padding, 16 bytes total)
+  Offset 0x10: u16[16 × glyph_count]  glyph bitmaps
+  ```
+  Each glyph = 16 rows × 16 columns, 1bpp (MSB = leftmost pixel). 32 bytes per glyph.
+  The engine applies edge-detected anti-aliasing when loading to VDP2 VRAM (`loadCharacterToVdp2`).
+  Glyphs are Japanese kanji/kana; mapping is context-specific per use site.
+
+  **Tool:** `tools/fnt_extract.py` — extracts all FNT files from disc to PNG sprite sheets + JSON.
 - **EPK files** (E006.EPK, E011.EPK, etc.): **Interactive cutscene streaming containers** — NOT
   SEQ/TON audio bundles. Each contains up to 16 synchronized entity streams (3D models, camera,
   audio). Format not yet decoded. These are the in-engine cinematic sequences in town areas.

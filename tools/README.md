@@ -202,6 +202,34 @@ Each extracted WAV file contains one unique instrument sample from the bank. Fil
 
 These require manual splitting at documented byte offsets before the TON and SEQ banks inside them can be processed. Offsets for the USA Disc 1 builds are in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`.
 
+## Font Extraction
+
+PDS uses VDP2 bitmap fonts stored in `.FNT` files — 16×16 1bpp glyph bitmaps for in-game text (kanji, kana, and Latin characters).
+
+```bash
+# List all FNT files on disc
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --scan
+
+# Extract all fonts
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --output output/fonts/
+
+# Extract a specific font
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --name MENU.FNT --output output/fonts/
+
+# Also export individual glyph PNGs
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --individual --output output/fonts/
+
+# From a pre-extracted raw file
+python tools/fnt_extract.py --input raw/MENU.FNT --output output/fonts/
+```
+
+**Output per font:**
+- `{NAME}_font.png` — sprite sheet (16 columns, white-on-transparent)
+- `{NAME}_font.json` — metadata (glyph count, font type, grid dimensions)
+- Optional: `{NAME}/glyph_NNN.png` — individual glyphs (with `--individual`)
+
+**Font categories on Disc 1 (65 files):** FLD (field UI), BTL (battle), EVT (cutscene/event), town-specific (EVTCAMP, EVTCARA, EVTZOAH, etc.), system (MENU, ITEM, SAVE, SHOP), WORLDMAP, MENUEN, MENUBK.
+
 ## Known Limitations
 
 - **Bank-mode textures** (colour modes 0 and 4) render as greyscale. These need VDP2 Color RAM data from PNB files, which requires parsing scene-specific PRG bytecode.
