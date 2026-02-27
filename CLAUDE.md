@@ -580,6 +580,12 @@ VDP2 Color RAM data. Needed for bank-mode textures (modes 0 and 4). Not yet pars
 - SEQ disc extractor (`tools/seq_extract.py`) — catalogues and extracts all SEQ/BIN files
 - SEQ→MIDI converter (`tools/seq_to_midi.py`) — full event parsing, multi-song support
 - TON→WAV extractor (`tools/ton_to_wav.py`) — per-instrument WAV samples from BIN tone banks; verified across all 78 standalone BIN files on Disc 1
+- SEQ/BIN catalogue & extractor (`tools/snd_split.py`) — resolves all 86 SEQ->BIN pairs across all 4 discs (including 5 shared-bank cases), parses AREAMAP.SND, invokes ton_to_wav + seq_to_midi for batch conversion
+- Sound catalogue builder (`tools/build_sound_catalogue.py`) — parses SNDTEST.PRG for 75 official track names; maps 57 to SEQ files on Disc 1; exposes 29 extra (SFX/battle) tracks for identification; outputs output/sound_catalogue.json
+- Sound test browser engine (`tools/sound_test_server.py` + `tools/sound_test.html`) — Python HTTP server (stdlib only, port 8765); browser UI with MIDI playback via html-midi-player (GM soundfont), per-instrument WAV sample auditioning, search/filter, confidence badges; verification tool before SF2/pitch-data work
+
+### Not Yet Implemented
+- ~~SND bundle splitter~~ — **INVESTIGATED AND RESOLVED**: EPISODE1-4 and INTER SND files do NOT exist on any disc. The only .SND file is AREAMAP.SND (276 bytes, a runtime sound driver area-music command stream). All music is in standalone SEQ+BIN pairs, fully catalogued by snd_split.py.
 - SEQ/BIN catalogue & extractor (`tools/snd_split.py`) — resolves all 86 SEQ→BIN pairs across all 4 discs (including 5 shared-bank cases), parses AREAMAP.SND, invokes ton_to_wav + seq_to_midi for batch conversion
 - Sound catalogue builder (`tools/build_sound_catalogue.py`) — parses SNDTEST.PRG for 75 official track names; maps 57 to SEQ files on Disc 1; exposes 29 extra (SFX/battle) tracks for identification; outputs output/sound_catalogue.json
 - SF2 SoundFont builder (`tools/make_sf2.py`) — converts BIN tone banks + extracted WAVs into standard SF2 2.01 files; no external libraries required; maps voice N → MIDI program N with correct key-split zones and per-sample OCT/FNS pitch rates; batch-converts all 84 disc1 banks to `output/sf2/` (16.2 MB total)
