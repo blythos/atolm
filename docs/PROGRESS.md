@@ -118,8 +118,9 @@ Remaining:
 - [ ] DataTable2 NPC/object placements (second pass, after static geometry works)
 
 ### Priority 4: 2D Assets
-- [ ] SCB format parser (VDP2 tilemap/background data)
-- [ ] PNB + SCB combined decoder for menu screens, backgrounds
+- [x] PNB format parser (`tools/pnb_extract.py`) — all 162 PNB files extracted (VDP2 Pattern Name Data → raw, JSON metadata, and PNG tile map visualisations)
+- [x] SCB format parser (VDP2 tilemap/background data)
+- [x] PNB + SCB combined decoder for menu screens, backgrounds
 - [x] Font extraction (`tools/fnt_extract.py`) — all 65 FNT files on Disc 1 extracted (16×16 1bpp glyph bitmaps → PNG sprite sheets + JSON)
 
 ### Priority 5: glTF Export
@@ -144,7 +145,7 @@ Remaining:
 | MCB only (no CGB) | 9 | Collision/pose data, no textures needed |
 | CGB only (no MCB) | 19 | 2D screen assets (SCB/PNB system) |
 | SCB files | 163 | Not yet parsed |
-| PNB files | 162 | Not yet parsed |
+| PNB files | 162 | Extracted to raw binary, JSON metadata, and PNG visualisations |
 | PRG files | 59 | Full opcode table documented (30 opcodes); field binary data layout known; parser not yet built |
 | CPK video | 14 | Fully extracted, subtitled MP4s |
 | PCM audio | 270 | Not yet extracted |

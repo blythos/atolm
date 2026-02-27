@@ -451,6 +451,26 @@ Pattern: `FLDCMN` + area base file + numbered subfields.
   A 256-glyph system font also exists in `COMMON.DAT` at offset `0x010E98` (also Japanese).
 
   **Tool:** `tools/fnt_extract.py` — extracts all FNT files + kernel font to PNG sprite sheets + JSON.
+- **PNB files** (ZOAH.PNB, TITLEE.PNB, MAP_A30.PNB, etc.): **VDP2 Pattern Name Data** — tile map
+  indices for 2D background layers. Despite the name suggesting "Palette Name Block", PNB files
+  only hold layout addresses (they pair with an `.SCB` file — Saturn Character
+  Bitmap — the actual tile graphics). 158 of 162 PNB files on Disc 1 have a matching `.SCB` file.
+  
+  **Palettes:** The 15-bit RGB555 palettes required to colour these backgrounds are fundamentally linked to the PNB/SCB files, but they are stored separately inside the map's corresponding `.PRG` overlay executable (e.g. `TWN_ZOAH.PRG`). The VDP2 CRAM block is consistently 4096 bytes long and stored at offset `0x278` inside these PRGs.
+
+  **Format:** flat array of u16 big-endian VDP2 1-word Pattern Name entries (no header):
+  ```
+  Bit 15:     Unused (always 0)
+  Bits 14-12: Palette number (0-7)
+  Bit 11:     Horizontal flip
+  Bit 10:     Vertical flip
+  Bits 9-0:   Character (tile) number (0-1023)
+  ```
+
+  Smallest: 32 bytes (16 entries, 1 file — SPACE.PNB, no SCB).
+  Largest: 40960 bytes (20480 entries, 2 files — ZOAH.PNB & TOWN2.PNB).
+
+  **Tool:** `tools/pnb_extract.py` — extracts all PNB files to raw binary, fully auto-assembles them with their `.SCB` graphics and `.PRG` palettes, and outputs full-color `_assembled.png` tilemaps.
 - **EPK files** (E006.EPK, E011.EPK, etc.): **Interactive cutscene streaming containers** — NOT
   SEQ/TON audio bundles. Each contains up to 16 synchronized entity streams (3D models, camera,
   audio). Format not yet decoded. These are the in-engine cinematic sequences in town areas.

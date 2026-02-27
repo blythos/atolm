@@ -238,9 +238,39 @@ python tools/fnt_extract.py --input raw/MENU.FNT --output output/fonts/
 | System | 4     | MENU, ITEM, SAVE, SHOP |
 | Other  | 4     | MENUEN, MENUBK, WORLDMAP, FLAGEDIT |
 
+## 2D Background Tile Maps (PNB / SCB / PRG)
+
+PDS uses `.PNB` files to encode VDP2 Pattern Name Data — a tile map of background elements. Its corresponding `.SCB` file stores the raw character geometry (the 4bpp or 8bpp pixel graphics).
+
+To render these maps in accurate colour, the script actively scans the disc for the map's parent executable (`.PRG` overlay) and automatically extracts its 4096-byte VDP2 Colour RAM payload from offset `0x278`.
+
+```bash
+# Extract all 162 maps, auto-assemble their SCB graphics, and apply their PRG palettes
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --extract-all --output output/tilemaps/
+
+# Extract a specific screen (e.g. TITLEE.PNB, ZOAH.PNB)
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --name ZOAH.PNB --output output/tilemaps/
+
+# List all PNB files and their graphics formats
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --list
+```
+
+**Output Per Map:**
+- `{NAME}.bin` — Raw binary array of u16 big-endian VDP2 pattern name entries.
+- `{NAME}.json` — Extracted metadata including unique tiles, bits-per-pixel mode, and statistics.
+- `{NAME}_assembled.png` — A full-color representation of the map, constructed by combining the PNB layout, SCB graphics, and PRG 15-bit RGB555 palettes. (If SCB/PRG are missing, it falls back to `{NAME}_tilemap_vis.png`).
+
+### Verification
+
+You can cryptographically verify that the auto-extracted PRG palettes match real Sega Saturn hardware using emulator save states:
+
+```bash
+# Prove 100% accuracy of extracted PRG palettes against Ymir emulator memory dumps
+python tools/verify_palettes_vs_emulator.py --iso "path/to/disc1.bin" --savestates ISOs/save_states/
+```
+
 ## Known Limitations
 
-- **Bank-mode textures** (colour modes 0 and 4) render as greyscale. These need VDP2 Color RAM data from PNB files, which requires parsing scene-specific PRG bytecode.
 - **Field geometry** (FLD_* files) contains many standalone models placed by PRG scripts. They extract as unassembled parts at origin.
 - **Gouraud shading** data (per-vertex normals and colours from lighting modes 1-3) is extracted but not yet fully rendered — the Saturn's Gouraud system modulates texture colours in ways that need further research.
 

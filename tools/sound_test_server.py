@@ -231,14 +231,16 @@ class SoundTestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_wav_map(self, bank):
-        """Return JSON mapping voice_index -> { wav, root } for a tone bank.
+        """Return JSON mapping voice_index -> list of {wav, root} for a tone bank.
 
-        Parses the BIN file to get the correct voice->sample ordering (which does NOT
-        match alphabetical WAV file order). Each voice index corresponds to MIDI program N.
-        For multi-layer voices the first layer's tone_off is used as the primary sample.
-        The root note is derived from lo_key (the MIDI key the sample is tuned to).
+        Parses the BIN file to get the correct voice->sample ordering and ALL layers.
+        Each voice index corresponds to MIDI program N. Multi-layer voices return all
+        layers so the browser can feed them all into a single Tone.Sampler for correct
+        key-split playback (low notes from one sample, high notes from another).
 
-        Response: { "0": {"wav": "sample_005_at0x...wav", "root": 60}, "1": {...}, ... }
+        Response: { "3": [{"wav": "sample_005.wav", "root": 37},
+                           {"wav": "sample_009.wav", "root": 80},
+                           {"wav": "sample_006.wav", "root": 47}], ... }
         Falls back to sorted alphabetical order with root=60 if BIN is unavailable.
         """
         raw_dir = os.path.join(self.output_dir, 'snd_split', self.disc, 'raw')
@@ -270,7 +272,7 @@ class SoundTestHandler(BaseHTTPRequestHandler):
                 bin_path = p
                 break
 
-        voice_map = {}  # str(voice_idx) -> { "wav": filename, "root": midi_note }
+        voice_map = {}  # str(voice_idx) -> list of { "wav": filename, "root": midi_note }
 
         if bin_path:
             try:
@@ -292,33 +294,34 @@ class SoundTestHandler(BaseHTTPRequestHandler):
                     if nlayers < 1 or nlayers > 64:
                         break  # sanity check
 
-                    # First layer block is the primary sample
-                    lb = vp
-                    if lb + 32 > len(data):
-                        break
+                    layers = []
+                    for li in range(nlayers):
+                        lb = vp + li * 32
+                        if lb + 32 > len(data):
+                            break
 
-                    raw_u32 = struct.unpack_from('>I', data, lb + 2)[0]
-                    tone_off = raw_u32 & 0x0007FFFF
-                    primary_wav = off_to_wav.get(tone_off)
+                        raw_u32 = struct.unpack_from('>I', data, lb + 2)[0]
+                        tone_off = raw_u32 & 0x0007FFFF
+                        wav = off_to_wav.get(tone_off)
+                        if not wav:
+                            continue
 
-                    # lo_key is the MIDI note the sample is tuned to play at natural pitch.
-                    # For single-note layers (lo_key == hi_key) this is exact.
-                    # For full-range layers (lo=0, hi=127) lo_key=0 is a sentinel meaning
-                    # "any note" — use middle C (60) as the root in that case.
-                    lo_key = data[lb + 0]
-                    hi_key = data[lb + 1]
-                    if lo_key == 0 and hi_key == 127:
-                        # Full-range layer: sample has no defined root, default to C4=60
-                        root = 60
-                    elif lo_key == hi_key:
-                        # Single-note layer: lo_key IS the exact root
-                        root = lo_key
-                    else:
-                        # Narrow range: use the midpoint as an approximation
-                        root = (lo_key + hi_key) // 2
+                        lo_key = data[lb + 0]
+                        hi_key = data[lb + 1]
+                        if lo_key == 0 and hi_key == 127:
+                            # Full-range layer: no defined root, default C4=60
+                            root = 60
+                        elif lo_key == hi_key:
+                            # Single-note layer: lo_key IS the exact root
+                            root = lo_key
+                        else:
+                            # Narrow range: midpoint as approximation
+                            root = (lo_key + hi_key) // 2
 
-                    if primary_wav:
-                        voice_map[str(vi)] = {"wav": primary_wav, "root": root}
+                        layers.append({"wav": wav, "root": root})
+
+                    if layers:
+                        voice_map[str(vi)] = layers
 
                     vp += nlayers * 32
             except Exception:
@@ -327,7 +330,7 @@ class SoundTestHandler(BaseHTTPRequestHandler):
         if not voice_map:
             # Fallback: map voice index i -> sorted WAV file i, root=60
             for i, w in enumerate(wav_files):
-                voice_map[str(i)] = {"wav": w, "root": 60}
+                voice_map[str(i)] = [{"wav": w, "root": 60}]
 
         self._serve_json_obj(voice_map)
 

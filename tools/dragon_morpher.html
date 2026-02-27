@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDS Dragon Morpher</title>
+  <meta name="description" content="Panzer Dragoon Saga — Interactive Dragon Morphing Tool">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #06060c;
+      --bg-panel: #0c0c16;
+      --bg-card: #141422;
+      --bg-hover: #1c1c34;
+      --bg-active: #24244a;
+      --border: #222240;
+      --border-bright: #33335a;
+      --text-primary: #e8e8f0;
+      --text-secondary: #a0a0b8;
+      --text-dim: #606080;
+      --accent: #7c6cf0;
+      --accent-glow: #9d90ff;
+      --accent-subtle: rgba(124, 108, 240, 0.1);
+      --attack-color: #ff4466;
+      --defense-color: #4488ff;
+      --agility-color: #44ff88;
+      --spiritual-color: #cc66ff;
+      --normal-color: #aaaacc;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 24px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      min-height: 56px;
+    }
+
+    #header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    #header .subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+    }
+
+    #level-select {
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #level-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    #level-status {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Main Layout ── */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Left Panel: Morph Controls ── */
+    #morph-panel {
+      width: 340px;
+      min-width: 340px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-section h2 {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    /* ── Cursor Pad ── */
+    #cursor-pad-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 0 auto;
+    }
+
+    #cursor-pad {
+      width: 280px;
+      height: 280px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      position: relative;
+      cursor: crosshair;
+      overflow: hidden;
+    }
+
+    #cursor-pad.disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* Quadrant zones */
+    .pad-quadrant {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0.25;
+    }
+
+    .pad-quadrant.attack {
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 50%;
+      color: var(--attack-color);
+    }
+
+    .pad-quadrant.spiritual {
+      top: 0;
+      right: 0;
+      width: 50%;
+      height: 50%;
+      color: var(--spiritual-color);
+    }
+
+    .pad-quadrant.defense {
+      bottom: 0;
+      left: 0;
+      width: 50%;
+      height: 50%;
+      color: var(--defense-color);
+    }
+
+    .pad-quadrant.agility-label {
+      bottom: 0;
+      right: 0;
+      width: 50%;
+      height: 50%;
+      color: var(--agility-color);
+    }
+
+    /* Dead zone overlay */
+    #dead-zone {
+      position: absolute;
+      border: 1px dashed var(--border-bright);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* Crosshair lines */
+    .pad-crosshair-h,
+    .pad-crosshair-v {
+      position: absolute;
+      background: var(--border);
+      pointer-events: none;
+    }
+
+    .pad-crosshair-h {
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+    }
+
+    .pad-crosshair-v {
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+    }
+
+    /* Cursor dot */
+    #cursor-dot {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--accent-glow);
+      box-shadow: 0 0 12px rgba(124, 108, 240, 0.5);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      z-index: 5;
+    }
+
+    /* Axis labels */
+    .pad-axis-label {
+      position: absolute;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .pad-axis-label.top {
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .pad-axis-label.bottom {
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .pad-axis-label.left {
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%) rotate(-90deg);
+    }
+
+    .pad-axis-label.right {
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%) rotate(90deg);
+    }
+
+    /* Cursor coordinates */
+    #cursor-coords {
+      text-align: center;
+      margin-top: 8px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+    }
+
+    /* ── Archetype Badge ── */
+    #archetype-badge {
+      text-align: center;
+      padding: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-radius: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      transition: color 0.3s, border-color 0.3s, background 0.3s;
+    }
+
+    /* ── Stats Bars ── */
+    .stat-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      width: 55px;
+      flex-shrink: 0;
+    }
+
+    .stat-bar-bg {
+      flex: 1;
+      height: 10px;
+      background: var(--bg-card);
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+
+    .stat-value {
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      width: 35px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .stat-att .stat-bar-fill {
+      background: var(--attack-color);
+    }
+
+    .stat-def .stat-bar-fill {
+      background: var(--defense-color);
+    }
+
+    .stat-agl .stat-bar-fill {
+      background: var(--agility-color);
+    }
+
+    .stat-spr .stat-bar-fill {
+      background: var(--spiritual-color);
+    }
+
+    .stat-att .stat-label {
+      color: var(--attack-color);
+    }
+
+    .stat-def .stat-label {
+      color: var(--defense-color);
+    }
+
+    .stat-agl .stat-label {
+      color: var(--agility-color);
+    }
+
+    .stat-spr .stat-label {
+      color: var(--spiritual-color);
+    }
+
+    /* ── Info Section ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .info-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+
+    .info-item .label {
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .info-item .value {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* ── Animation Controls ── */
+    #anim-select {
+      width: 100%;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .anim-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .anim-btn {
+      flex: 1;
+      padding: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .anim-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .anim-btn.active {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── 3D Viewport ── */
+    #viewport {
+      flex: 1;
+      position: relative;
+      background: #050510;
+      overflow: hidden;
+    }
+
+    #glcanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    #viewport-hud {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      pointer-events: none;
+      line-height: 1.6;
+    }
+
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(6, 6, 12, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    #loading-overlay.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #loading-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-bright);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <div id="header">
+    <h1>PDS Dragon Morpher</h1>
+    <span class="subtitle">Panzer Dragoon Saga</span>
+    <div class="header-divider"></div>
+    <select id="level-select" onchange="onLevelChange(this.value)">
+      <option value="" disabled selected>Loading…</option>
+    </select>
+    <span id="level-status"></span>
+  </div>
+
+  <!-- Main Area -->
+  <div id="main">
+    <!-- Left Panel -->
+    <div id="morph-panel">
+      <!-- Morph Cursor -->
+      <div class="panel-section">
+        <h2>Morph Cursor</h2>
+        <div id="cursor-pad-container">
+          <span class="pad-axis-label top" style="color: var(--agility-color)">AGILITY</span>
+          <span class="pad-axis-label bottom" style="color: var(--defense-color)">DEFENSE</span>
+          <span class="pad-axis-label left" style="color: var(--attack-color)">ATTACK</span>
+          <span class="pad-axis-label right" style="color: var(--spiritual-color)">SPIRITUAL</span>
+          <div id="cursor-pad" class="disabled">
+            <div class="pad-quadrant attack">ATK</div>
+            <div class="pad-quadrant spiritual">SPR</div>
+            <div class="pad-quadrant defense">DEF</div>
+            <div class="pad-quadrant agility-label">AGL</div>
+            <div class="pad-crosshair-h"></div>
+            <div class="pad-crosshair-v"></div>
+            <div id="dead-zone"></div>
+            <div id="cursor-dot"></div>
+          </div>
+        </div>
+        <div id="cursor-coords">X: 0x0000 &nbsp; Y: 0x0000</div>
+      </div>
+
+      <!-- Archetype -->
+      <div class="panel-section">
+        <h2>Archetype</h2>
+        <div id="archetype-badge">NORMAL</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="panel-section">
+        <h2>Dragon Stats</h2>
+        <div class="stat-row stat-att">
+          <span class="stat-label">ATT</span>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill" id="bar-att" style="width: 50%"></div>
+          </div>
+          <span class="stat-value" id="val-att">0</span>
+        </div>
+        <div class="stat-row stat-def">
+          <span class="stat-label">DEF</span>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill" id="bar-def" style="width: 50%"></div>
+          </div>
+          <span class="stat-value" id="val-def">0</span>
+        </div>
+        <div class="stat-row stat-agl">
+          <span class="stat-label">AGL</span>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill" id="bar-agl" style="width: 50%"></div>
+          </div>
+          <span class="stat-value" id="val-agl">0</span>
+        </div>
+        <div class="stat-row stat-spr">
+          <span class="stat-label">SPR</span>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill" id="bar-spr" style="width: 50%"></div>
+          </div>
+          <span class="stat-value" id="val-spr">0</span>
+        </div>
+      </div>
+
+      <!-- Model Info -->
+      <div class="panel-section">
+        <h2>Model Info</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="label">Models</div>
+            <div class="value" id="info-models">—</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Bones</div>
+            <div class="value" id="info-bones">—</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Animations</div>
+            <div class="value" id="info-anims">—</div>
+          </div>
+          <div class="info-item">
+            <div class="label">MCB File</div>
+            <div class="value" id="info-mcb">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation -->
+      <div class="panel-section">
+        <h2>Animation</h2>
+        <select id="anim-select" onchange="onAnimChange(this.value)">
+          <option value="-1">No animation</option>
+        </select>
+        <div class="anim-controls">
+          <button class="anim-btn active" id="btn-play" onclick="togglePlayback()">▶ Play</button>
+          <button class="anim-btn" id="btn-textured" onclick="toggleTexture()">🖼 Textured</button>
+          <button class="anim-btn" id="btn-wireframe" onclick="toggleWireframe()">◇ Wire</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3D Viewport -->
+    <div id="viewport">
+      <canvas id="glcanvas"></canvas>
+      <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading dragon…</div>
+      </div>
+      <div id="viewport-hud"></div>
+    </div>
+  </div>
+
+  <!-- Import shared renderer & animation code -->
+  <script src="/viewer_animation.js"></script>
+  <script src="/viewer_renderer.js"></script>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // Dragon Morpher Application
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // ── Constants (from game code) ──────────────────────────────────────
+    const CURSOR_RANGE = 0x800;      // ±0x800 for each axis
+    const DEAD_ZONE = 0x400;         // |cursor| < 0x400 → NORMAL
+    const STAT_AXIS_SCALE_DEFAULT = 100; // will vary per level in real game
+
+    const ARCHETYPES = ['NORMAL', 'DEFENSE', 'ATTACK', 'AGILITY', 'SPIRITUAL'];
+    const ARCHETYPE_COLORS = {
+      NORMAL: 'var(--normal-color)',
+      DEFENSE: 'var(--defense-color)',
+      ATTACK: 'var(--attack-color)',
+      AGILITY: 'var(--agility-color)',
+      SPIRITUAL: 'var(--spiritual-color)',
+    };
+
+    // Dragon level data (populated from server)
+    let dragonLevels = [];
+    let currentLevel = null;
+    let cursorX = 0;   // s16, ±0x800
+    let cursorY = 0;   // s16, ±0x800
+
+    // Rendering state — matches pds_viewer.html patterns exactly
+    let renderer = null;
+    let animController = null;
+    let currentStructure = null;
+    let animations = [];
+    let playbackSpeed = 1.0;
+    let lastFrameTime = 0;
+    let frameAccumulator = 0;
+    let isPlaying = true;
+    let baseVertices = null;
+    let morphVariants = null;
+
+    // ── Pad UI ──────────────────────────────────────────────────────────
+    const PAD_SIZE = 280;
+    const PAD_CENTER = PAD_SIZE / 2;
+    const DEAD_ZONE_FRAC = DEAD_ZONE / CURSOR_RANGE;
+    const DEAD_ZONE_PX = DEAD_ZONE_FRAC * PAD_CENTER;
+
+    function initPad() {
+      const dz = document.getElementById('dead-zone');
+      const dzSize = DEAD_ZONE_PX * 2;
+      dz.style.width = dzSize + 'px';
+      dz.style.height = dzSize + 'px';
+      dz.style.left = (PAD_CENTER - DEAD_ZONE_PX) + 'px';
+      dz.style.top = (PAD_CENTER - DEAD_ZONE_PX) + 'px';
+      updateCursorDot();
+    }
+
+    function updateCursorDot() {
+      const dot = document.getElementById('cursor-dot');
+      const px = PAD_CENTER + (cursorX / CURSOR_RANGE) * PAD_CENTER;
+      const py = PAD_CENTER - (cursorY / CURSOR_RANGE) * PAD_CENTER;
+      dot.style.left = px + 'px';
+      dot.style.top = py + 'px';
+
+      const arch = computeArchetype();
+      const col = ARCHETYPE_COLORS[arch];
+      dot.style.background = col;
+      dot.style.borderColor = col;
+
+      const xHex = (cursorX < 0 ? '-' : '') + '0x' + Math.abs(cursorX).toString(16).toUpperCase().padStart(4, '0');
+      const yHex = (cursorY < 0 ? '-' : '') + '0x' + Math.abs(cursorY).toString(16).toUpperCase().padStart(4, '0');
+      document.getElementById('cursor-coords').textContent = `X: ${xHex}   Y: ${yHex}`;
+    }
+
+    // ── Pad Mouse Interaction ───────────────────────────────────────────
+    let padDragging = false;
+
+    function padFromEvent(e) {
+      const pad = document.getElementById('cursor-pad');
+      const rect = pad.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      let nx = ((mx - PAD_CENTER) / PAD_CENTER) * CURSOR_RANGE;
+      let ny = -((my - PAD_CENTER) / PAD_CENTER) * CURSOR_RANGE;
+
+      cursorX = Math.max(-CURSOR_RANGE, Math.min(CURSOR_RANGE, Math.round(nx)));
+      cursorY = Math.max(-CURSOR_RANGE, Math.min(CURSOR_RANGE, Math.round(ny)));
+      updateMorphState();
+    }
+
+    function setupPadControls() {
+      const pad = document.getElementById('cursor-pad');
+
+      pad.addEventListener('mousedown', (e) => {
+        if (pad.classList.contains('disabled')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        padDragging = true;
+        padFromEvent(e);
+      });
+
+      // Use window-level listeners so dragging outside the pad still works
+      window.addEventListener('mousemove', (e) => {
+        if (!padDragging) return;
+        e.preventDefault();
+        padFromEvent(e);
+      });
+
+      window.addEventListener('mouseup', () => {
+        padDragging = false;
+      });
+
+      // Touch support
+      pad.addEventListener('touchstart', (e) => {
+        if (pad.classList.contains('disabled')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        padDragging = true;
+        padFromEvent(e.touches[0]);
+      });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!padDragging) return;
+        e.preventDefault();
+        padFromEvent(e.touches[0]);
+      }, { passive: false });
+
+      window.addEventListener('touchend', () => {
+        padDragging = false;
+      });
+    }
+
+    // ── Game Logic: Archetype Computation ────────────────────────────────
+    // Exact port of computeDragonSprAndAglFromCursor from mainMenuDebugTasks.cpp
+
+    function computeArchetype() {
+      if (!currentLevel || !currentLevel.morphable) return 'NORMAL';
+
+      let absCursorX = Math.abs(cursorX);
+      let absCursorY = Math.abs(cursorY);
+
+      let archX = cursorX >= 0 ? 'SPIRITUAL' : 'ATTACK';
+      if (absCursorX < DEAD_ZONE) archX = 'NORMAL';
+
+      let archY = cursorY >= 0 ? 'AGILITY' : 'DEFENSE';
+      if (absCursorY < DEAD_ZONE) archY = 'NORMAL';
+
+      let archetype = archX;
+      if ((archX !== 'NORMAL' || archY !== 'NORMAL') && absCursorX < absCursorY) {
+        archetype = archY;
+      }
+      if (archX === 'NORMAL' && archY === 'NORMAL') {
+        archetype = 'NORMAL';
+      }
+
+      return archetype;
+    }
+
+    function computeStats() {
+      const statAxisScale = STAT_AXIS_SCALE_DEFAULT + 1;
+      const halfScale = Math.floor(statAxisScale / 2);
+
+      let agl, def, spr, att;
+      if (currentLevel && currentLevel.morphable) {
+        agl = Math.floor(((cursorY + CURSOR_RANGE) * statAxisScale) / (CURSOR_RANGE * 4));
+        def = halfScale - agl;
+        spr = Math.floor(((cursorX + CURSOR_RANGE) * statAxisScale) / (CURSOR_RANGE * 4));
+        att = halfScale - spr;
+      } else {
+        agl = Math.floor(halfScale / 2);
+        def = Math.floor(halfScale / 2);
+        spr = Math.floor(halfScale / 2);
+        att = Math.floor(halfScale / 2);
+      }
+
+      return { att, def, agl, spr, maxStat: halfScale };
+    }
+
+    function updateMorphState() {
+      updateCursorDot();
+
+      const archetype = computeArchetype();
+      const badge = document.getElementById('archetype-badge');
+      badge.textContent = archetype;
+      badge.style.color = ARCHETYPE_COLORS[archetype];
+      badge.style.borderColor = ARCHETYPE_COLORS[archetype];
+
+      const stats = computeStats();
+      const maxStat = stats.maxStat || 1;
+
+      document.getElementById('val-att').textContent = stats.att;
+      document.getElementById('val-def').textContent = stats.def;
+      document.getElementById('val-agl').textContent = stats.agl;
+      document.getElementById('val-spr').textContent = stats.spr;
+
+      document.getElementById('bar-att').style.width = ((stats.att / maxStat) * 100) + '%';
+      document.getElementById('bar-def').style.width = ((stats.def / maxStat) * 100) + '%';
+      document.getElementById('bar-agl').style.width = ((stats.agl / maxStat) * 100) + '%';
+      document.getElementById('bar-spr').style.width = ((stats.spr / maxStat) * 100) + '%';
+
+      // Apply morph blend to dragon mesh
+      if (morphVariants && baseVertices && renderer && renderer.currentModels) {
+        let w_cen = 0, w_x = 0, w_y = 0;
+        let v_x = 0, v_y = 0;
+
+        const absX = Math.abs(cursorX);
+        const absY = Math.abs(cursorY);
+
+        if (absX === 0 && absY === 0) {
+          w_cen = 1.0;
+        } else {
+          const norm = 1.0 / ((absX + absY) * 2048.0);
+          w_cen = ((2048 - absX) * absX + (2048 - absY) * absY) * norm;
+          w_x = (absX * absX) * norm;
+          w_y = (absY * absY) * norm;
+        }
+
+        v_x = cursorX >= 0 ? 1 : 2; // +X (Spiritual), -X (Attack)
+        v_y = cursorY >= 0 ? 3 : 4; // +Y (Agility), -Y (Defense)
+
+        // Update vertices in renderer models
+        for (const [offsetStr, model] of Object.entries(renderer.currentModels)) {
+          const cenV = morphVariants[0][offsetStr];
+          const varXV = morphVariants[v_x][offsetStr];
+          const varYV = morphVariants[v_y][offsetStr];
+
+          if (!cenV || !varXV || !varYV) continue;
+
+          for (let i = 0; i < model.vertices.length; i++) {
+            model.vertices[i][0] = cenV[i][0] * w_cen + varXV[i][0] * w_x + varYV[i][0] * w_y;
+            model.vertices[i][1] = cenV[i][1] * w_cen + varXV[i][1] * w_x + varYV[i][1] * w_y;
+            model.vertices[i][2] = cenV[i][2] * w_cen + varXV[i][2] * w_x + varYV[i][2] * w_y;
+          }
+        }
+
+        // Trigger mesh rebuild
+        updateRendererPose();
+        if (!animController || !animController.playing) {
+          renderer._buildMeshBuffers(Object.values(renderer.currentModels));
+        }
+      }
+    }
+
+    // ── Pose Rendering Helper ───────────────────────────────────────────
+    // Matches pds_viewer.html:updateRendererPose() exactly
+    function updateRendererPose() {
+      if (!animController || !renderer.currentHierarchy) return;
+      const pose = animController.getPoseForRendering();
+      renderer.buildAnimatedMeshBuffers(pose);
+    }
+
+    // ── Dragon Loading ──────────────────────────────────────────────────
+
+    async function init() {
+      // Fetch dragon list from server
+      try {
+        const resp = await fetch('/api/dragons');
+        dragonLevels = await resp.json();
+      } catch (e) {
+        console.error('Failed to fetch dragon list:', e);
+        dragonLevels = [];
+      }
+
+      // Populate level selector
+      const select = document.getElementById('level-select');
+      select.innerHTML = '';
+      for (const d of dragonLevels) {
+        const opt = document.createElement('option');
+        opt.value = d.level;
+        opt.textContent = `${d.level}: ${d.name}`;
+        if (!d.baseAvailable) {
+          opt.textContent += ' (unavailable)';
+          opt.disabled = true;
+        }
+        select.appendChild(opt);
+      }
+
+      // Init renderer — use proper namespace export from viewer_renderer.js
+      const canvas = document.getElementById('glcanvas');
+      try {
+        renderer = new (window.PDSRenderer.PDSRenderer)(canvas);
+      } catch (e) {
+        console.error('WebGL init failed:', e);
+        return;
+      }
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Setup mouse interaction for viewport (on canvas only)
+      setupViewportControls(canvas);
+
+      // Setup pad controls
+      setupPadControls();
+
+      initPad();
+      updateMorphState();
+
+      // Load first available dragon
+      const firstAvailable = dragonLevels.find(d => d.baseAvailable);
+      if (firstAvailable) {
+        select.value = firstAvailable.level;
+        await loadDragon(firstAvailable.level);
+      }
+
+      // Start render loop
+      renderLoop();
+    }
+
+    function resizeCanvas() {
+      const canvas = document.getElementById('glcanvas');
+      const vp = document.getElementById('viewport');
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = vp.clientWidth * dpr;
+      canvas.height = vp.clientHeight * dpr;
+      canvas.style.width = vp.clientWidth + 'px';
+      canvas.style.height = vp.clientHeight + 'px';
+      if (renderer && renderer.resize) {
+        renderer.resize(canvas.width, canvas.height);
+      } else if (renderer) {
+        renderer.gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function setupViewportControls(canvas) {
+      let vpDragging = false;
+      let vpButton = -1;
+      let lastX = 0, lastY = 0;
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (padDragging) return; // Don't steal from pad
+        vpDragging = true;
+        vpButton = e.button;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        e.preventDefault();
+      });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      window.addEventListener('mousemove', (e) => {
+        if (!vpDragging || !renderer) return;
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        if (vpButton === 0) {
+          renderer.cameraRotY += dx * 0.01;
+          renderer.cameraRotX += dy * 0.01;
+          renderer.cameraRotX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, renderer.cameraRotX));
+        } else if (vpButton === 1 || vpButton === 2) {
+          renderer.cameraPanX += dx * renderer.cameraDistance * 0.001;
+          renderer.cameraPanY -= dy * renderer.cameraDistance * 0.001;
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        vpDragging = false;
+      });
+
+      canvas.addEventListener('wheel', (e) => {
+        if (!renderer) return;
+        renderer.cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
+        renderer.cameraDistance = Math.max(1, Math.min(10000, renderer.cameraDistance));
+        e.preventDefault();
+      });
+    }
+
+    async function loadDragon(levelIdx) {
+      const dragon = dragonLevels.find(d => d.level === parseInt(levelIdx));
+      if (!dragon || !dragon.baseAvailable) return;
+
+      currentLevel = dragon;
+
+      // Update pad state
+      const pad = document.getElementById('cursor-pad');
+      if (dragon.morphable) {
+        pad.classList.remove('disabled');
+      } else {
+        pad.classList.add('disabled');
+        cursorX = 0;
+        cursorY = 0;
+      }
+      updateMorphState();
+
+      // Show loading
+      const overlay = document.getElementById('loading-overlay');
+      const loadingText = document.getElementById('loading-text');
+      overlay.classList.remove('hidden');
+      loadingText.textContent = `Loading ${dragon.name}…`;
+      document.getElementById('level-status').textContent = `Loading ${dragon.base}…`;
+
+      try {
+        // Fetch MCB, CGB, structure JSON, and morph data if morphable
+        let morphMcbResp = null, morphStructResp = null;
+        if (dragon.morphable && dragon.morph) {
+          [morphMcbResp, morphStructResp] = await Promise.all([
+            fetch(`/api/raw/${dragon.morph}.mcb.bin`).catch(() => null),
+            fetch(`/api/raw/${dragon.morph}_structure.json`).catch(() => null)
+          ]);
+        }
+
+        const [mcbResp, cgbResp, structResp] = await Promise.all([
+          fetch(`/api/raw/${dragon.base}.mcb.bin`),
+          fetch(`/api/raw/${dragon.base}.cgb.bin`).catch(() => null),
+          fetch(`/api/raw/${dragon.base}_structure.json`),
+        ]);
+
+        if (!mcbResp.ok || !structResp.ok) {
+          throw new Error('Failed to fetch dragon files');
+        }
+
+        currentMCB = new Uint8Array(await mcbResp.arrayBuffer());
+        const cgb = (cgbResp && cgbResp.ok) ? new Uint8Array(await cgbResp.arrayBuffer()) : new Uint8Array(0);
+        currentStructure = await structResp.json();
+
+        // Load model into renderer
+        renderer.loadModel(currentMCB, cgb, currentStructure);
+
+        // Save base vertices
+        baseVertices = {};
+        for (const [offsetStr, model] of Object.entries(renderer.currentModels)) {
+          baseVertices[offsetStr] = model.vertices.map(v => [...v]);
+        }
+
+        // Parse morph variants if available
+        morphVariants = null;
+        if (dragon.morphable && morphMcbResp && morphMcbResp.ok && morphStructResp && morphStructResp.ok) {
+          const morphMCB = new Uint8Array(await morphMcbResp.arrayBuffer());
+          const morphStruct = await morphStructResp.json();
+
+          const morphModels = morphStruct.pointerTable
+            .filter(e => e.type === 'model')
+            .sort((a, b) => a.slot - b.slot);
+
+          const baseModels = currentStructure.pointerTable
+            .filter(e => e.type === 'model')
+            .sort((a, b) => a.slot - b.slot);
+
+          const numBase = baseModels.length;
+
+          if (morphModels.length === numBase * 5) {
+            morphVariants = [{}, {}, {}, {}, {}];
+            const dataView = new DataView(morphMCB.buffer, morphMCB.byteOffset, morphMCB.byteLength);
+
+            for (let v = 0; v < 5; v++) {
+              for (let i = 0; i < numBase; i++) {
+                const mEntry = morphModels[v * numBase + i];
+                const bEntry = baseModels[i];
+
+                const numVerts = dataView.getUint32(mEntry.offset + 4, false);
+                const vertOffset = dataView.getUint32(mEntry.offset + 8, false);
+
+                const variantVerts = [];
+                for (let j = 0; j < numVerts; j++) {
+                  const vo = vertOffset + j * 6;
+                  variantVerts.push([
+                    dataView.getInt16(vo, false),
+                    dataView.getInt16(vo + 2, false),
+                    dataView.getInt16(vo + 4, false)
+                  ]);
+                }
+                morphVariants[v][bEntry.offset] = variantVerts;
+              }
+            }
+          } else {
+            console.warn(`Morph model count mismatch: Expected 5x${numBase}, got ${morphModels.length}`);
+          }
+        }
+
+        // ── Parse animations from pointer table (matching pds_viewer.html) ──
+        animations = [];
+        for (const entry of currentStructure.pointerTable) {
+          if (entry.type === 'animation') {
+            const anim = window.PDSAnimation.parseAnimationData(currentMCB, entry.offset);
+            if (anim) {
+              animations.push({ slot: entry.slot, data: anim });
+            }
+          }
+        }
+
+        // ── Setup animation controller with hierarchy + static pose ──
+        animController = null;
+        if (currentStructure.hierarchies.length > 0) {
+          const hier = currentStructure.hierarchies[0];
+
+          // Find first static pose in the pointer table
+          let defaultPose = [];
+          for (const entry of currentStructure.pointerTable) {
+            if (entry.type === 'pose') {
+              defaultPose = window.PDSAnimation.parseStaticPose(currentMCB, entry.offset, hier.boneCount);
+              break;
+            }
+          }
+
+          // Create controller with (numBones, defaultPose)
+          animController = new (window.PDSAnimation.AnimationController)(hier.boneCount, defaultPose);
+
+          // Auto-play first animation, or apply static pose
+          if (animations.length > 0) {
+            animController.setAnimation(animations[0].data);
+            animController.loop = true;
+            isPlaying = true;
+            document.getElementById('btn-play').textContent = '▶ Play';
+            document.getElementById('btn-play').classList.add('active');
+          } else {
+            // No animations — just apply the static pose
+            updateRendererPose();
+          }
+        }
+
+        // Populate animation dropdown
+        const animSelect = document.getElementById('anim-select');
+        animSelect.innerHTML = '<option value="-1">No animation</option>';
+        animations.forEach((a, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `Anim ${i} (slot ${a.slot}, ${a.data.numFrames}f, mode ${a.data.mode})`;
+          animSelect.appendChild(opt);
+        });
+        if (animations.length > 0) {
+          animSelect.value = '0';
+        }
+
+        // Update info panel
+        document.getElementById('info-models').textContent =
+          currentStructure.pointerTable.filter(e => e.type === 'model').length;
+        document.getElementById('info-bones').textContent =
+          currentStructure.hierarchies.length > 0 ? currentStructure.hierarchies[0].boneCount : 0;
+        document.getElementById('info-anims').textContent = animations.length;
+        document.getElementById('info-mcb').textContent = dragon.base;
+
+        document.getElementById('level-status').textContent =
+          `${dragon.base} — ${(currentMCB.length / 1024).toFixed(0)} KB MCB, ${(cgb.length / 1024).toFixed(0)} KB CGB`;
+
+      } catch (e) {
+        console.error('Failed to load dragon:', e);
+        document.getElementById('level-status').textContent = `Error loading ${dragon.base}`;
+      }
+
+      overlay.classList.add('hidden');
+    }
+
+    function onLevelChange(value) {
+      loadDragon(value);
+    }
+
+    function onAnimChange(value) {
+      const idx = parseInt(value);
+      if (!animController) return;
+
+      if (idx < 0 || idx >= animations.length) {
+        animController.playing = false;
+        animController.currentAnimation = null;
+        updateRendererPose();
+        return;
+      }
+
+      animController.setAnimation(animations[idx].data);
+      animController.loop = true;
+      isPlaying = true;
+      document.getElementById('btn-play').textContent = '▶ Play';
+      document.getElementById('btn-play').classList.add('active');
+      updateRendererPose();
+    }
+
+    function togglePlayback() {
+      if (!animController || !animController.currentAnimation) return;
+      isPlaying = !isPlaying;
+      animController.playing = isPlaying;
+      const btn = document.getElementById('btn-play');
+      btn.textContent = isPlaying ? '▶ Play' : '⏸ Pause';
+      btn.classList.toggle('active', isPlaying);
+    }
+
+    function toggleTexture() {
+      if (!renderer) return;
+      renderer.showTexture = !renderer.showTexture;
+      document.getElementById('btn-textured').classList.toggle('active', renderer.showTexture);
+    }
+
+    function toggleWireframe() {
+      if (!renderer) return;
+      renderer.showWireframe = !renderer.showWireframe;
+      document.getElementById('btn-wireframe').classList.toggle('active', renderer.showWireframe);
+    }
+
+    // ── Render Loop (matches pds_viewer.html at 30fps Saturn rate) ───────
+
+    function renderLoop(timestamp = 0) {
+      animFrameId = requestAnimationFrame(renderLoop);
+
+      // Animation stepping at ~30fps (Saturn frame rate) × speed
+      const TARGET_FPS = 30;
+      const delta = timestamp - lastFrameTime;
+      lastFrameTime = timestamp;
+
+      if (animController && animController.playing && animController.currentAnimation && isPlaying) {
+        frameAccumulator += delta * playbackSpeed;
+        const frameInterval = 1000 / TARGET_FPS;
+
+        while (frameAccumulator >= frameInterval) {
+          frameAccumulator -= frameInterval;
+          animController.stepAnimation();
+        }
+
+        updateRendererPose();
+      }
+
+      if (renderer) {
+        renderer.render();
+      }
+
+      // HUD
+      const hud = document.getElementById('viewport-hud');
+      if (currentLevel) {
+        const arch = computeArchetype();
+        let hudText = `${currentLevel.name} — ${arch}`;
+        if (animController && animController.currentAnimation) {
+          hudText += `\nFrame: ${animController.currentFrame} / ${animController.currentAnimation.numFrames}`;
+        }
+        hud.textContent = hudText;
+      }
+    }
+
+    // ── Boot ─────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+
+</html>

@@ -18,7 +18,7 @@ The goal is a native modern port: an application that loads the original disc im
 | **FMV Video** | ✅ All 14 CPK Cinepak videos extracted to MP4 with frame-accurate subtitles |
 | **Sequenced Music** | ✅ 86 SEQ→MIDI conversions; 89 BIN tone banks→WAV instrument samples; official track names from SNDTEST.PRG |
 | **PCM Audio** | ⬜ 270 PCM files on disc — extractor not yet started |
-| **2D Assets** | ⬜ 163 SCB + 162 PNB files — parsers not yet started |
+| **2D Assets** | 🔄 PNB extracted (raw + visualisations); SCB parser not yet started |
 | **Fonts** | ✅ All 65 FNT files extracted — 16×16 1bpp glyph bitmaps → PNG sprite sheets + JSON |
 | **3D Viewer** | ✅ Browser-based Three.js viewer with textured models, animation playback, and asset browser |
 | **Sound Test** | ✅ Browser-based MIDI playback + WAV auditioning with search and filtering |
@@ -79,6 +79,10 @@ atolm/
 │   ├── build_sound_catalogue.py    # SNDTEST.PRG → official track names
 │   ├── make_sf2.py                 # SoundFont (SF2) builder
 │   ├── pcm_extract.py              # PCM audio extractor (WIP)
+│   │
+│   │  ── 2D Assets ──
+│   ├── pnb_extract.py              # PNB pattern name extraction
+│   ├── fnt_extract.py              # FNT font glyph extraction
 │   │
 │   │  ── Sound Test ──
 │   ├── sound_test_server.py        # HTTP server for browser sound test

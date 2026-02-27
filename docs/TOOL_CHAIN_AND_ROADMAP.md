@@ -24,7 +24,7 @@ Use the decompiled code and extracted assets to build a native application. yaz0
 | 3 | **3D Model Extractor** (vertices, quads → OBJ/glTF) | Partially — the vertex/quad container is PDS-specific, but VDP1 quad command fields are Saturn-generic | Partially | ✅ Done |
 | 4 | **VDP1 Texture Decoder** (4bpp LUT, 4bpp bank, 8bpp bank, 16bpp RGB) | No | **Yes** — these modes are Saturn hardware standard | ✅ LUT + RGB done, bank modes need PNB |
 | 5 | **CGB Reader** (raw pixel data extraction) | **PDS** — headerless format with PDS-specific addressing | No | ✅ Done |
-| 6 | **PNB Parser** (VDP2 Color RAM / palette tables) | Likely **PDS** — may have custom header structure | Partially — VDP2 CRAM format is Saturn-standard | ❌ Not started |
+| 6 | **PNB Parser** (VDP2 Pattern Name Data / tile maps) | **PDS** — headerless flat array, relies on SCB for tile graphics | Partially — VDP2 pattern name format is Saturn-standard | ✅ Done |
 | 7 | **SCB Parser** (VDP2 tilemap/background data) | Likely **PDS** — custom container around Saturn-standard tile data | Partially | ❌ Not started |
 | 8 | **Skeletal Pose/Animation Decoder** | **PDS** — the 36-byte bone format and animation track structure are engine-specific | No | ✅ Static pose done, keyframe animation not started |
 | 9 | **PCM Audio Extractor** | Depends on format | Saturn SCSP audio format is generic | ❌ Not started |
@@ -157,7 +157,7 @@ More realistically for a two-person effort, there are useful and achievable goal
 ### Phase 1: Complete Asset Extraction (current focus)
 Dependencies: None (disc image only)
 ```
-1.1  PNB parser (palettes)               → unblocks bank-mode textures
+1.1  PNB parser (tile maps)               → ✅ done — format decoded as VDP2 Pattern Name Data
 1.2  Bank-mode texture support            → depends on 1.1
 1.3  SCB parser (2D backgrounds)          → depends on 1.1 for palettes
 1.4  PCM audio extractor                  → independent

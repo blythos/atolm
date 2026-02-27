@@ -569,6 +569,7 @@ class MidiScheduler {
     this.durationSec = 0;
     this.startTime = 0;
     this.progMap = new Map();   // ch → current program
+    this.ccState  = new Map();  // `${ch}:${cc}` → val (0–127); tracks CC7/CC10/CC11
   }
 
   // Convert MIDI ticks to seconds using tempo map
@@ -601,28 +602,76 @@ class MidiScheduler {
     return tickToSec;
   }
 
+  // Find the tick of the first noteOn event (used to skip silent intro)
+  _firstNoteTick() {
+    let first = Infinity;
+    for (const tr of this.midi.tracks) {
+      for (const ev of tr) {
+        if (ev.type === 'noteOn' && ev.vel > 0 && ev.tick < first) first = ev.tick;
+      }
+    }
+    return isFinite(first) ? first : 0;
+  }
+
   start() {
     this.startTime = audioCtx.currentTime;
     const tickToSec = this._buildTimeMap();
 
-    // Flatten all note events and schedule them
+    // Skip the silent intro: find the first noteOn and treat its time as t=0.
+    // Saturn SEQ files often have hundreds of ticks (sometimes minutes) of 75 BPM
+    // silence before the music section, used by the game engine for synchronization.
+    const firstNoteTick = this._firstNoteTick();
+    const introSec = tickToSec(firstNoteTick);
+    this.introSec = introSec;   // expose for progress bar
+    // Recompute duration relative to the first note
+    this.durationSec = this.durationSec - introSec;
+
+    // Pre-apply all program changes and CC state that occur before the first note
+    for (const track of this.midi.tracks) {
+      for (const ev of track) {
+        if (ev.tick >= firstNoteTick) break;
+        if (ev.type === 'pc') this.progMap.set(ev.ch, ev.prog);
+        if (ev.type === 'cc') this.ccState.set(`${ev.ch}:${ev.cc}`, ev.val);
+      }
+    }
+
+    // Flatten all note events starting from firstNoteTick and schedule them
     for (const track of this.midi.tracks) {
       for (const ev of track) {
         if (this._stopped) break;
-        const when = this.startTime + tickToSec(ev.tick);
-        const prog = this.progMap.get(ev.ch) ?? 0;
+        if (ev.tick < firstNoteTick) continue;   // skip silent intro events
+
+        // Time relative to first note, offset by when we actually started
+        const when = this.startTime + (tickToSec(ev.tick) - introSec);
 
         if (ev.type === 'pc') {
           this.progMap.set(ev.ch, ev.prog);
+        } else if (ev.type === 'cc') {
+          // Schedule CC state update — CC7 (volume), CC10 (pan), CC11 (expression)
+          // CC11 especially critical: 556 events in TITLE.SEQ shape all dynamics.
+          const ch = ev.ch, cc = ev.cc, val = ev.val;
+          const id = setTimeout(() => {
+            if (this._stopped) return;
+            this.ccState.set(`${ch}:${cc}`, val);
+          }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+          this._timeouts.push(id);
         } else if (ev.type === 'noteOn') {
           const p = this.progMap.get(ev.ch) ?? 0;
           const sampler = this.samplers.get(p) || this.samplers.get(0);
           if (sampler) {
             const noteName = Tone.Frequency(ev.note, 'midi').toNote();
-            const vel = ev.vel / 127;
+            const ch = ev.ch;
+            // Capture raw vel; CC7/CC11 state is read at trigger time for accuracy.
+            const rawVel = ev.vel;
             const id = setTimeout(() => {
               if (this._stopped) return;
-              try { sampler.triggerAttack(noteName, Tone.now(), vel); }
+              try {
+                // CC7 (volume) default 100, CC11 (expression) default 127
+                const cc7  = this.ccState.get(`${ch}:7`)  ?? 100;
+                const cc11 = this.ccState.get(`${ch}:11`) ?? 127;
+                const vel  = (rawVel / 127) * (cc7 / 127) * (cc11 / 127);
+                sampler.triggerAttack(noteName, Tone.now(), Math.max(0.001, vel));
+              }
               catch(e) {}
             }, Math.max(0, (when - audioCtx.currentTime) * 1000));
             this._timeouts.push(id);
@@ -639,6 +688,24 @@ class MidiScheduler {
             }, Math.max(0, (when - audioCtx.currentTime) * 1000));
             this._timeouts.push(id);
           }
+        } else if (ev.type === 'pb') {
+          // Pitch bend: ±2 semitone range (200 cents) is MIDI default.
+          // Apply via sampler.detune (affects all voices on that program).
+          const ch = ev.ch, bend = ev.pitch;
+          const id = setTimeout(() => {
+            if (this._stopped) return;
+            const p = this.progMap.get(ch) ?? 0;
+            const sampler = this.samplers.get(p) || this.samplers.get(0);
+            if (sampler) {
+              try {
+                const cents = (bend / 8192) * 200;
+                if (sampler.detune && sampler.detune.value !== undefined) {
+                  sampler.detune.value = cents;
+                }
+              } catch(e) {}
+            }
+          }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+          this._timeouts.push(id);
         }
       }
     }
@@ -691,25 +758,30 @@ async function buildSamplers(track) {
   const samplers = new Map();
 
   // Build one Tone.Sampler per voice (= MIDI program).
-  // Each sampler is pre-loaded with one WAV at its correct root note (from BIN lo_key).
-  // Tone.js pitch-shifts from the root note to play any requested MIDI note.
+  // Each voice may have multiple key-split layers (different samples for different pitch ranges).
+  // We load ALL layers into the sampler so Tone.js interpolates correctly across registers.
   // Chain: sampler → analyser → masterGain → AudioContext destination
-  for (const [voiceIdxStr, entry] of Object.entries(voiceMap)) {
+  for (const [voiceIdxStr, layers] of Object.entries(voiceMap)) {
     const progNum = parseInt(voiceIdxStr, 10);
-    // entry may be { wav, root } (new format) or just a filename string (fallback)
-    const wavFile = typeof entry === 'string' ? entry : entry.wav;
-    const rootMidi = typeof entry === 'string' ? 60 : (entry.root ?? 60);
-    const rootNote = Tone.Frequency(rootMidi, 'midi').toNote();
 
-    const url = `${SERVER}/wav/${encodeURIComponent(bank)}/${encodeURIComponent(wavFile)}`;
+    // Normalise: entry may be an array of {wav,root}, a single {wav,root}, or a plain string
+    let layerList = Array.isArray(layers) ? layers
+                  : typeof layers === 'string' ? [{ wav: layers, root: 60 }]
+                  : [{ wav: layers.wav, root: layers.root ?? 60 }];
+
+    // Build the note->url map for Tone.Sampler
+    const noteMap = {};
+    for (const { wav, root } of layerList) {
+      const rootNote = Tone.Frequency(root, 'midi').toNote();
+      const url = `${SERVER}/wav/${encodeURIComponent(bank)}/${encodeURIComponent(wav)}`;
+      noteMap[rootNote] = url;
+    }
+
     await new Promise((resolve) => {
-      const sampler = new Tone.Sampler(
-        { [rootNote]: url },
-        {
-          onload: resolve,
-          onerror: () => resolve(),   // don't block on failed loads
-        }
-      );
+      const sampler = new Tone.Sampler(noteMap, {
+        onload: resolve,
+        onerror: () => resolve(),   // don't block on failed loads
+      });
       // Connect directly to our analyser node (bypasses Tone's destination chain).
       // Chain: sampler → analyser → masterGain → speaker
       sampler.connect(analyser);
@@ -910,6 +982,7 @@ function updateControls(enabled) {
 // Playback — fetch MIDI, build samplers, schedule notes
 // ---------------------------------------------------------------------------
 let _currentSamplers = null;
+let _currentBank = null;   // tracks which BIN bank the current samplers were built from
 
 async function playTrack(track) {
   if (!track?.seq) {
@@ -938,9 +1011,11 @@ async function playTrack(track) {
 
     document.getElementById('playback-status').textContent = 'Loading instrument samples…';
 
-    // Build samplers (reuse if same track)
-    if (!_currentSamplers) {
+    // Build samplers — reuse only when the BIN bank is the same (different tracks often share banks)
+    const thisBank = track.wav_dir ? track.wav_dir.split(/[/\\]/).pop() : null;
+    if (!_currentSamplers || _currentBank !== thisBank) {
       _currentSamplers = await buildSamplers(track);
+      _currentBank = thisBank;
     }
 
     midiScheduler = new MidiScheduler(midiData, _currentSamplers, masterGain);
