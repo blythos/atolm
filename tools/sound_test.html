@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDS Sound Test</title>
+  <style>
+    :root {
+      --bg-deep:    #0a0a0f;
+      --bg-panel:   #111118;
+      --bg-card:    #1a1a24;
+      --bg-hover:   #22223a;
+      --bg-active:  #2a2a4a;
+      --border:     #2a2a3a;
+      --border-bright: #3a3a5a;
+      --text-primary:  #e8e8f0;
+      --text-secondary:#8888aa;
+      --text-dim:   #555577;
+      --accent:     #6c8cff;
+      --accent-glow:#4a6aff;
+      --green:      #5ce0a0;
+      --red:        #ff6b6b;
+      --orange:     #ffaa44;
+      --cyan:       #44ddee;
+      --yellow:     #ffd966;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.05em; color: var(--accent); }
+    #stats { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
+    #search {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 200px;
+    }
+    #search:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Main layout ── */
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Track list sidebar ── */
+    #sidebar {
+      width: 290px;
+      min-width: 290px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #track-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    #track-list::-webkit-scrollbar { width: 6px; }
+    #track-list::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+    .section-header {
+      padding: 6px 14px 4px;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.08em; color: var(--text-dim);
+      text-transform: uppercase; margin-top: 6px;
+    }
+    .track-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 0.1s;
+    }
+    .track-item:hover { background: var(--bg-hover); }
+    .track-item.active { background: var(--bg-active); border-left-color: var(--accent); }
+    .track-item.not-found { opacity: 0.35; cursor: default; }
+    .track-name { font-size: 12.5px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-item.extra .track-name { color: var(--text-secondary); }
+    .badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; letter-spacing: 0.04em; }
+    .badge.inferred { background: #332200; color: var(--orange); }
+    .badge.shared   { background: #001a22; color: var(--cyan); }
+    .badge.missing  { background: #220000; color: var(--red); }
+
+    /* ── Right panel ── */
+    #panel {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; padding: 16px 20px; gap: 12px;
+    }
+
+    /* Now Playing card */
+    #now-playing {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 18px;
+    }
+    #np-name { font-size: 20px; font-weight: 600; margin-bottom: 6px; min-height: 26px; }
+    #np-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+    .meta-label { color: var(--text-dim); }
+    .meta-value { color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+    .meta-value.accent { color: var(--accent); }
+
+    /* Controls row */
+    #controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ctrl-btn {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-primary); padding: 6px 14px;
+      border-radius: 5px; font-size: 13px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .ctrl-btn:hover { background: var(--bg-hover); border-color: var(--border-bright); }
+    .ctrl-btn.primary { background: var(--accent-glow); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .ctrl-btn.primary:hover { background: var(--accent); }
+    .ctrl-btn.stop-active { background: #2a1010; border-color: var(--red); color: var(--red); }
+    .ctrl-btn:disabled { opacity: 0.35; cursor: default; }
+
+    /* Volume control */
+    #vol-control {
+      display: flex; align-items: center; gap: 8px;
+      margin-left: auto;
+    }
+    #vol-control label { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+    #vol-slider { width: 90px; accent-color: var(--accent); cursor: pointer; }
+    #vol-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--accent); min-width: 36px; text-align: right; }
+
+    /* Transport bar */
+    #transport {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    #transport-top { display: flex; justify-content: space-between; align-items: center; }
+    #playback-status { font-size: 12px; color: var(--text-secondary); min-height: 16px; }
+    #playback-clock { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+    #progress-track {
+      height: 4px; background: var(--border);
+      border-radius: 2px; overflow: hidden; cursor: pointer;
+    }
+    #progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; border-radius: 2px; }
+
+    /* Visualiser */
+    #viz-section {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden; flex-shrink: 0;
+    }
+    #viz-canvas { width: 100%; height: 80px; display: block; }
+
+    /* WAV samples */
+    #wav-section {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px;
+      flex: 1; overflow: hidden; display: flex; flex-direction: column;
+    }
+    #wav-section h3 {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 8px; flex-shrink: 0;
+    }
+
+    #pitch-control {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 8px; flex-shrink: 0;
+      border-bottom: 1px solid var(--border); margin-bottom: 8px;
+    }
+    #pitch-control label { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+    #pitch-slider { flex: 1; accent-color: var(--accent); cursor: pointer; }
+    #pitch-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--accent); min-width: 28px; text-align: right; }
+    #pitch-reset { font-size: 10px; padding: 2px 7px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 3px; color: var(--text-secondary); cursor: pointer; }
+    #pitch-reset:hover { border-color: var(--border-bright); color: var(--text-primary); }
+
+    #wav-list { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; flex: 1; }
+    #wav-list::-webkit-scrollbar { width: 6px; }
+    #wav-list::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+    .wav-btn {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      color: var(--text-secondary); padding: 3px 9px; border-radius: 4px;
+      font-size: 11px; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      transition: background 0.1s, color 0.1s;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .wav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .wav-btn.playing { border-color: var(--green); color: var(--green); }
+
+    /* Loading overlay */
+    #loading {
+      position: fixed; inset: 0;
+      background: rgba(10,10,15,0.9);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: var(--text-secondary); z-index: 100;
+    }
+    #loading.hidden { display: none; }
+
+    /* Error banner */
+    #error-banner {
+      background: #330000; border: 1px solid var(--red);
+      color: var(--red); padding: 10px 20px; font-size: 13px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">Loading catalogue…</div>
+<div id="topbar">
+  <h1>PDS Sound Test</h1>
+  <span id="stats"></span>
+  <input id="search" type="search" placeholder="Filter tracks…" autocomplete="off">
+</div>
+<div id="error-banner"></div>
+
+<div id="main">
+  <div id="sidebar">
+    <div id="track-list"></div>
+  </div>
+
+  <div id="panel">
+    <div id="now-playing">
+      <div id="np-name">Select a track to play</div>
+      <div id="np-meta"></div>
+    </div>
+
+    <div id="controls">
+      <button class="ctrl-btn primary" id="btn-play" disabled>▶ Play</button>
+      <button class="ctrl-btn" id="btn-stop" disabled>⏹ Stop</button>
+      <button class="ctrl-btn" id="btn-prev" disabled>⏮ Prev</button>
+      <button class="ctrl-btn" id="btn-next" disabled>⏭ Next</button>
+      <div id="vol-control">
+        <label for="vol-slider">Volume:</label>
+        <input type="range" id="vol-slider" min="0" max="100" value="80" step="1">
+        <span id="vol-val">80%</span>
+      </div>
+    </div>
+
+    <div id="transport">
+      <div id="transport-top">
+        <span id="playback-status">No track loaded</span>
+        <span id="playback-clock">0:00 / 0:00</span>
+      </div>
+      <div id="progress-track"><div id="progress-fill"></div></div>
+    </div>
+
+    <div id="viz-section">
+      <canvas id="viz-canvas"></canvas>
+    </div>
+
+    <div id="wav-section">
+      <h3>Instrument Samples (this bank)</h3>
+      <div id="pitch-control">
+        <label for="pitch-slider">Pitch shift:</label>
+        <input type="range" id="pitch-slider" min="-24" max="24" value="0" step="1">
+        <span id="pitch-val">0 st</span>
+        <button id="pitch-reset">Reset</button>
+      </div>
+      <div id="wav-list"><span style="color:var(--text-dim);font-size:12px">Select a track to see its instrument samples.</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let catalogue = null;
+let allTracks = [];
+let currentIndex = -1;
+
+// Web Audio
+let audioCtx = null;
+let masterGain = null;
+let analyser = null;
+let activeWavSource = null;
+let activeWavBtn = null;
+
+// Playback engine state
+let midiScheduler = null;   // current MidiScheduler instance
+
+const SERVER = window.location.origin;
+
+// ---------------------------------------------------------------------------
+// Web Audio initialisation
+// ---------------------------------------------------------------------------
+// There are two phases:
+//
+// Phase 1 — before Tone.js loads: create a plain AudioContext for WAV preview
+//   playback only (no MIDI). The visualiser won't work yet.
+//
+// Phase 2 — after Tone.js loads (initToneAudio): Tone.js creates its OWN
+//   internal AudioContext. We must use THAT context for everything — you
+//   cannot connect nodes between two different AudioContexts.
+//   We:
+//     a) Grab Tone's raw AudioContext as our authoritative audioCtx.
+//     b) Create gain + analyser nodes inside Tone's context.
+//     c) Disconnect Tone's master volume node from the speaker output.
+//     d) Route: Tone.Destination → our masterGain → analyser → speaker.
+//     e) Re-connect the WAV preview source chain to the same masterGain.
+
+function ensureAudioCtx() {
+  // Phase 1: plain context for WAV preview before Tone loads
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = parseFloat(document.getElementById('vol-slider').value) / 100;
+  masterGain.connect(audioCtx.destination);
+  // Analyser attached for WAV preview — replaced in initToneAudio()
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.8;
+  masterGain.connect(analyser);
+  startVizLoop();
+}
+
+let _toneAudioInited = false;
+function initToneAudio() {
+  // Phase 2: after Tone.js loads, switch everything to Tone's context.
+  // We do NOT try to intercept Tone's internal destination chain (fragile).
+  // Instead, samplers connect directly to our analyser → masterGain → speaker.
+  if (_toneAudioInited) return;
+  _toneAudioInited = true;
+
+  const toneCtx = Tone.getContext().rawContext;  // Tone's AudioContext
+
+  // Stop the old viz loop so we can restart it with the new nodes
+  if (_vizRaf) { cancelAnimationFrame(_vizRaf); _vizRaf = null; }
+
+  // Rebuild gain + analyser in Tone's context
+  // Chain: sampler → analyser → masterGain → speaker
+  audioCtx   = toneCtx;
+
+  analyser = toneCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.8;
+
+  masterGain = toneCtx.createGain();
+  masterGain.gain.value = parseFloat(document.getElementById('vol-slider').value) / 100;
+
+  analyser.connect(masterGain);
+  masterGain.connect(toneCtx.destination);
+
+  startVizLoop();
+}
+
+// ---------------------------------------------------------------------------
+// Visualiser — dual-mode: waveform when active, spectrum bars at idle
+// ---------------------------------------------------------------------------
+const vizCanvas = document.getElementById('viz-canvas');
+const vizCtx    = vizCanvas.getContext('2d');
+let _vizRaf = null;
+
+function resizeViz() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = vizCanvas.getBoundingClientRect();
+  vizCanvas.width  = rect.width  * dpr;
+  vizCanvas.height = rect.height * dpr;
+  // Reset transform then apply DPR scale (avoid accumulation on repeated calls)
+  vizCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeViz();
+window.addEventListener('resize', resizeViz);
+
+// Single persistent viz loop — reads `analyser` by reference each frame
+// so it works correctly after initToneAudio() swaps in a new analyser node.
+let _vizLoopId = 0;   // incremented each time we restart, used to self-cancel stale loops
+
+function startVizLoop() {
+  // Cancel any existing loop
+  if (_vizRaf) { cancelAnimationFrame(_vizRaf); _vizRaf = null; }
+  const myId = ++_vizLoopId;
+
+  function draw() {
+    if (_vizLoopId !== myId) return;   // stale loop — bail out
+    _vizRaf = requestAnimationFrame(draw);
+    if (!analyser) return;
+
+    const W = vizCanvas.getBoundingClientRect().width;
+    const H = vizCanvas.getBoundingClientRect().height;
+    vizCtx.clearRect(0, 0, W, H);
+
+    const buf = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(buf);
+
+    // Detect if audio is active (RMS > threshold)
+    let rms = 0;
+    for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / buf.length);
+    const isActive = rms > 0.001;
+
+    if (isActive) {
+      // Waveform mode
+      vizCtx.strokeStyle = '#6c8cff';
+      vizCtx.lineWidth = 1.5;
+      vizCtx.beginPath();
+      const step = W / buf.length;
+      for (let i = 0; i < buf.length; i++) {
+        const x = i * step;
+        const y = (0.5 + buf[i] * 0.45) * H;
+        i === 0 ? vizCtx.moveTo(x, y) : vizCtx.lineTo(x, y);
+      }
+      vizCtx.stroke();
+
+      // RMS level bar at right edge
+      const level = Math.min(1, rms * 8);
+      const barH = H * level;
+      const grad = vizCtx.createLinearGradient(0, H - barH, 0, H);
+      grad.addColorStop(0, level > 0.8 ? '#ff6b6b' : level > 0.5 ? '#ffaa44' : '#5ce0a0');
+      grad.addColorStop(1, '#1a1a24');
+      vizCtx.fillStyle = grad;
+      vizCtx.fillRect(W - 6, H - barH, 6, barH);
+    } else {
+      // Spectrum idle mode
+      const freqBuf = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(freqBuf);
+      const nBars = 64;
+      const barW = (W - nBars) / nBars;
+      const binStep = Math.floor(freqBuf.length / nBars);
+      for (let i = 0; i < nBars; i++) {
+        const v = freqBuf[i * binStep] / 255;
+        const barH = v * H * 0.6 + 1;
+        const hue = 220 + i * 1.5;
+        vizCtx.fillStyle = `hsla(${hue},70%,55%,${0.15 + v * 0.5})`;
+        vizCtx.fillRect(i * (barW + 1), H - barH, barW, barH);
+      }
+    }
+  }
+  draw();
+}
+
+// ---------------------------------------------------------------------------
+// Lazy Tone.js loader (must run inside a user gesture for AudioContext policy)
+// ---------------------------------------------------------------------------
+let _toneLoaded = false;
+let _tonePromise = null;
+
+function loadTone() {
+  if (_toneLoaded) return Promise.resolve();
+  if (_tonePromise) return _tonePromise;
+  _tonePromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    // Tone.js only — no @magenta/music, no html-midi-player
+    s.src = 'https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js';
+    s.onload = () => { _toneLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('Failed to load Tone.js — check network'));
+    document.head.appendChild(s);
+  });
+  return _tonePromise;
+}
+
+// ---------------------------------------------------------------------------
+// MIDI binary parser (runs in browser, no library needed)
+// Parses the .mid file fetched from /midi/<name>.mid and returns an event list.
+// ---------------------------------------------------------------------------
+function parseMidi(buffer) {
+  // Returns { ticksPerBeat, tempos:[{tick,mspb}], tracks:[[{tick,type,...}]] }
+  const view = new DataView(buffer);
+  let pos = 0;
+
+  function r8()  { return view.getUint8(pos++); }
+  function r16() { const v = view.getUint16(pos, false); pos += 2; return v; }
+  function r32() { const v = view.getUint32(pos, false); pos += 4; return v; }
+  function rStr(n) {
+    let s = '';
+    for (let i = 0; i < n; i++) s += String.fromCharCode(r8());
+    return s;
+  }
+  function rVlq() {
+    let v = 0, b;
+    do { b = r8(); v = (v << 7) | (b & 0x7F); } while (b & 0x80);
+    return v;
+  }
+
+  if (rStr(4) !== 'MThd') throw new Error('Not a MIDI file');
+  const hdrLen = r32();
+  const fmt = r16();
+  const nTracks = r16();
+  const tpb = r16();
+
+  const tracks = [];
+  const tempos = [];
+
+  for (let t = 0; t < nTracks; t++) {
+    if (rStr(4) !== 'MTrk') throw new Error('Expected MTrk');
+    const chunkLen = r32();
+    const end = pos + chunkLen;
+    const events = [];
+    let tick = 0;
+    let runStatus = 0;
+
+    while (pos < end) {
+      const delta = rVlq();
+      tick += delta;
+      let status = view.getUint8(pos);
+
+      if (status & 0x80) { runStatus = status; pos++; }
+      else { status = runStatus; }
+
+      const type = status & 0xF0;
+      const ch   = status & 0x0F;
+
+      if (status === 0xFF) {
+        // Meta
+        const meta = r8();
+        const len  = rVlq();
+        if (meta === 0x51 && len === 3) {
+          const mspb = (r8() << 16) | (r8() << 8) | r8();
+          tempos.push({ tick, mspb });
+          events.push({ tick, type: 'tempo', mspb });
+        } else {
+          pos += len;
+        }
+      } else if (status === 0xF0 || status === 0xF7) {
+        const len = rVlq(); pos += len;
+      } else if (type === 0x80 || type === 0x90) {
+        const note = r8(), vel = r8();
+        events.push({ tick, type: (type === 0x90 && vel > 0) ? 'noteOn' : 'noteOff', ch, note, vel });
+      } else if (type === 0xA0) { r8(); r8(); }
+      else if (type === 0xB0) {
+        const cc = r8(), val = r8();
+        events.push({ tick, type: 'cc', ch, cc, val });
+      } else if (type === 0xC0) {
+        const prog = r8();
+        events.push({ tick, type: 'pc', ch, prog });
+      } else if (type === 0xD0) { r8(); }
+      else if (type === 0xE0) {
+        const lo = r8(), hi = r8();
+        events.push({ tick, type: 'pb', ch, pitch: (hi << 7 | lo) - 8192 });
+      } else {
+        // Unknown — skip; running status means we already consumed status byte
+        break;
+      }
+    }
+    pos = end;
+    tracks.push(events);
+  }
+
+  return { ticksPerBeat: tpb, tempos, tracks };
+}
+
+// ---------------------------------------------------------------------------
+// MidiScheduler — plays parsed MIDI via Tone.js Sampler instruments
+// ---------------------------------------------------------------------------
+class MidiScheduler {
+  constructor(midiData, samplers, gainNode) {
+    this.midi     = midiData;
+    this.samplers = samplers;   // Map: program → Tone.Sampler
+    this.gainNode = gainNode;
+    this._stopped = false;
+    this._timeouts = [];
+    this.durationSec = 0;
+    this.startTime = 0;
+    this.progMap = new Map();   // ch → current program
+    this.ccState  = new Map();  // `${ch}:${cc}` → val (0–127); tracks CC7/CC10/CC11
+  }
+
+  // Convert MIDI ticks to seconds using tempo map
+  _buildTimeMap() {
+    const { ticksPerBeat, tempos, tracks } = this.midi;
+    // Merge all events to find max tick
+    let maxTick = 0;
+    for (const tr of tracks) {
+      for (const ev of tr) { if (ev.tick > maxTick) maxTick = ev.tick; }
+    }
+
+    // Build a sorted tempo list (default 120 BPM = 500000 mspb)
+    const sorted = [{ tick: 0, mspb: 500000 }, ...tempos].sort((a, b) => a.tick - b.tick);
+
+    // Convert tick to seconds
+    const tickToSec = (tick) => {
+      let sec = 0, prevTick = 0, mspb = 500000;
+      for (const t of sorted) {
+        if (t.tick > tick) break;
+        sec += (t.tick - prevTick) / ticksPerBeat * (mspb / 1e6);
+        prevTick = t.tick;
+        mspb = t.mspb;
+      }
+      sec += (tick - prevTick) / ticksPerBeat * (mspb / 1e6);
+      return sec;
+    };
+
+    this._tickToSec = tickToSec;
+    this.durationSec = tickToSec(maxTick);
+    return tickToSec;
+  }
+
+  // Find the tick of the first noteOn event (used to skip silent intro)
+  _firstNoteTick() {
+    let first = Infinity;
+    for (const tr of this.midi.tracks) {
+      for (const ev of tr) {
+        if (ev.type === 'noteOn' && ev.vel > 0 && ev.tick < first) first = ev.tick;
+      }
+    }
+    return isFinite(first) ? first : 0;
+  }
+
+  start() {
+    this.startTime = audioCtx.currentTime;
+    const tickToSec = this._buildTimeMap();
+
+    // Skip the silent intro: find the first noteOn and treat its time as t=0.
+    // Saturn SEQ files often have hundreds of ticks (sometimes minutes) of 75 BPM
+    // silence before the music section, used by the game engine for synchronization.
+    const firstNoteTick = this._firstNoteTick();
+    const introSec = tickToSec(firstNoteTick);
+    this.introSec = introSec;   // expose for progress bar
+    // Recompute duration relative to the first note
+    this.durationSec = this.durationSec - introSec;
+
+    // Pre-apply all program changes and CC state that occur before the first note
+    for (const track of this.midi.tracks) {
+      for (const ev of track) {
+        if (ev.tick >= firstNoteTick) break;
+        if (ev.type === 'pc') this.progMap.set(ev.ch, ev.prog);
+        if (ev.type === 'cc') this.ccState.set(`${ev.ch}:${ev.cc}`, ev.val);
+      }
+    }
+
+    // Flatten all note events starting from firstNoteTick and schedule them
+    for (const track of this.midi.tracks) {
+      for (const ev of track) {
+        if (this._stopped) break;
+        if (ev.tick < firstNoteTick) continue;   // skip silent intro events
+
+        // Time relative to first note, offset by when we actually started
+        const when = this.startTime + (tickToSec(ev.tick) - introSec);
+
+        if (ev.type === 'pc') {
+          this.progMap.set(ev.ch, ev.prog);
+        } else if (ev.type === 'cc') {
+          // Schedule CC state update — CC7 (volume), CC10 (pan), CC11 (expression)
+          // CC11 especially critical: 556 events in TITLE.SEQ shape all dynamics.
+          const ch = ev.ch, cc = ev.cc, val = ev.val;
+          const id = setTimeout(() => {
+            if (this._stopped) return;
+            this.ccState.set(`${ch}:${cc}`, val);
+          }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+          this._timeouts.push(id);
+        } else if (ev.type === 'noteOn') {
+          const p = this.progMap.get(ev.ch) ?? 0;
+          const sampler = this.samplers.get(p) || this.samplers.get(0);
+          if (sampler) {
+            const noteName = Tone.Frequency(ev.note, 'midi').toNote();
+            const ch = ev.ch;
+            // Capture raw vel; CC7/CC11 state is read at trigger time for accuracy.
+            const rawVel = ev.vel;
+            const id = setTimeout(() => {
+              if (this._stopped) return;
+              try {
+                // CC7 (volume) default 100, CC11 (expression) default 127
+                const cc7  = this.ccState.get(`${ch}:7`)  ?? 100;
+                const cc11 = this.ccState.get(`${ch}:11`) ?? 127;
+                const vel  = (rawVel / 127) * (cc7 / 127) * (cc11 / 127);
+                sampler.triggerAttack(noteName, Tone.now(), Math.max(0.001, vel));
+              }
+              catch(e) {}
+            }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+            this._timeouts.push(id);
+          }
+        } else if (ev.type === 'noteOff') {
+          const p = this.progMap.get(ev.ch) ?? 0;
+          const sampler = this.samplers.get(p) || this.samplers.get(0);
+          if (sampler) {
+            const noteName = Tone.Frequency(ev.note, 'midi').toNote();
+            const id = setTimeout(() => {
+              if (this._stopped) return;
+              try { sampler.triggerRelease(noteName, Tone.now()); }
+              catch(e) {}
+            }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+            this._timeouts.push(id);
+          }
+        } else if (ev.type === 'pb') {
+          // Pitch bend: ±2 semitone range (200 cents) is MIDI default.
+          // Apply via sampler.detune (affects all voices on that program).
+          const ch = ev.ch, bend = ev.pitch;
+          const id = setTimeout(() => {
+            if (this._stopped) return;
+            const p = this.progMap.get(ch) ?? 0;
+            const sampler = this.samplers.get(p) || this.samplers.get(0);
+            if (sampler) {
+              try {
+                const cents = (bend / 8192) * 200;
+                if (sampler.detune && sampler.detune.value !== undefined) {
+                  sampler.detune.value = cents;
+                }
+              } catch(e) {}
+            }
+          }, Math.max(0, (when - audioCtx.currentTime) * 1000));
+          this._timeouts.push(id);
+        }
+      }
+    }
+  }
+
+  stop() {
+    this._stopped = true;
+    this._timeouts.forEach(id => clearTimeout(id));
+    this._timeouts = [];
+    for (const sampler of this.samplers.values()) {
+      try { sampler.releaseAll(); } catch(e) {}
+    }
+  }
+
+  currentSec() {
+    if (!this.startTime) return 0;
+    return Math.max(0, audioCtx.currentTime - this.startTime);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Build Tone.js Samplers from a track's WAV bank
+// Returns Map<programNumber, Tone.Sampler>
+// ---------------------------------------------------------------------------
+async function buildSamplers(track) {
+  if (!track || !track.wav_dir) return new Map();
+
+  const bank = track.wav_dir.split(/[/\\]/).pop();
+
+  // Fetch the BIN-derived voice->WAV mapping (voice index = MIDI program number).
+  // This is critical: alphabetical WAV order does NOT match BIN voice order.
+  // The server parses the BIN tone bank and returns { "0": "sample_NNN...", "1": ... }
+  let voiceMap = null;
+  try {
+    const resp = await fetch(`${SERVER}/wav_map/${encodeURIComponent(bank)}`);
+    if (resp.ok) voiceMap = await resp.json();
+  } catch(e) { /* fall through to sorted fallback */ }
+
+  // Fallback: if wav_map fails, use sorted alphabetical order (incorrect for most banks)
+  if (!voiceMap || Object.keys(voiceMap).length === 0) {
+    let files;
+    try {
+      const resp2 = await fetch(`${SERVER}/wav_list/${encodeURIComponent(bank)}`);
+      files = await resp2.json();
+    } catch(e2) { return new Map(); }
+    voiceMap = {};
+    (files || []).forEach((f, i) => { voiceMap[String(i)] = f; });
+  }
+
+  const samplers = new Map();
+
+  // Build one Tone.Sampler per voice (= MIDI program).
+  // Each voice may have multiple key-split layers (different samples for different pitch ranges).
+  // We load ALL layers into the sampler so Tone.js interpolates correctly across registers.
+  // Chain: sampler → analyser → masterGain → AudioContext destination
+  for (const [voiceIdxStr, layers] of Object.entries(voiceMap)) {
+    const progNum = parseInt(voiceIdxStr, 10);
+
+    // Normalise: entry may be an array of {wav,root}, a single {wav,root}, or a plain string
+    let layerList = Array.isArray(layers) ? layers
+                  : typeof layers === 'string' ? [{ wav: layers, root: 60 }]
+                  : [{ wav: layers.wav, root: layers.root ?? 60 }];
+
+    // Build the note->url map for Tone.Sampler
+    const noteMap = {};
+    for (const { wav, root } of layerList) {
+      const rootNote = Tone.Frequency(root, 'midi').toNote();
+      const url = `${SERVER}/wav/${encodeURIComponent(bank)}/${encodeURIComponent(wav)}`;
+      noteMap[rootNote] = url;
+    }
+
+    await new Promise((resolve) => {
+      const sampler = new Tone.Sampler(noteMap, {
+        onload: resolve,
+        onerror: () => resolve(),   // don't block on failed loads
+      });
+      // Connect directly to our analyser node (bypasses Tone's destination chain).
+      // Chain: sampler → analyser → masterGain → speaker
+      sampler.connect(analyser);
+      samplers.set(progNum, sampler);
+    });
+  }
+
+  return samplers;
+}
+
+// ---------------------------------------------------------------------------
+// Transport progress bar updater
+// ---------------------------------------------------------------------------
+let _progressInterval = null;
+
+function startProgress(scheduler) {
+  stopProgress();
+  _progressInterval = setInterval(() => {
+    if (!scheduler || scheduler._stopped) { stopProgress(); return; }
+    const cur  = scheduler.currentSec();
+    const dur  = scheduler.durationSec || 1;
+    const pct  = Math.min(100, (cur / dur) * 100);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('playback-clock').textContent =
+      `${fmtTime(cur)} / ${fmtTime(dur)}`;
+    if (cur >= dur) {
+      stopAll();
+      document.getElementById('playback-status').textContent = 'Finished';
+    }
+  }, 250);
+}
+
+function stopProgress() {
+  if (_progressInterval) { clearInterval(_progressInterval); _progressInterval = null; }
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('playback-clock').textContent = '0:00 / 0:00';
+}
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// ---------------------------------------------------------------------------
+// Load catalogue
+// ---------------------------------------------------------------------------
+async function loadCatalogue() {
+  try {
+    const resp = await fetch(`${SERVER}/catalogue`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    catalogue = await resp.json();
+  } catch(e) {
+    showError(`Failed to load catalogue: ${e.message}. Is sound_test_server.py running?`);
+    document.getElementById('loading').classList.add('hidden');
+    return;
+  }
+  buildUI();
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// Build sidebar
+// ---------------------------------------------------------------------------
+function buildUI() {
+  const stats = catalogue.stats || {};
+  document.getElementById('stats').textContent =
+    `${stats.named_matched ?? '?'} named · ${stats.extra_seq_files ?? '?'} extra · ${stats.total_seq_files ?? '?'} total`;
+
+  const sections = {};
+  for (const t of catalogue.tracks) {
+    const cat = t.category || 'Other';
+    if (!sections[cat]) sections[cat] = [];
+    sections[cat].push(t);
+  }
+  if (catalogue.extra_tracks?.length) sections['Extra Tracks'] = catalogue.extra_tracks;
+  const missing = (catalogue.unmatched_names || []).map(n => ({ sndtest_name: n, seq: null, _missing: true }));
+  if (missing.length) sections['Not on This Disc'] = missing;
+
+  const order = ['Field Areas', 'Towns & Events', 'Special', 'Extra Tracks', 'Not on This Disc'];
+  const container = document.getElementById('track-list');
+  container.innerHTML = '';
+  allTracks = [];
+
+  for (const sectionName of order) {
+    const entries = sections[sectionName];
+    if (!entries?.length) continue;
+    const hdr = document.createElement('div');
+    hdr.className = 'section-header';
+    hdr.textContent = sectionName;
+    container.appendChild(hdr);
+
+    for (const track of entries) {
+      const idx = allTracks.length;
+      const item = document.createElement('div');
+      item.className = 'track-item' +
+        (track._missing ? ' not-found' : '') +
+        (sectionName === 'Extra Tracks' ? ' extra' : '');
+      item.dataset.idx = idx;
+
+      const name = document.createElement('span');
+      name.className = 'track-name';
+      name.textContent = track.sndtest_name || track.seq?.replace(/\.SEQ$/i, '') || '?';
+      item.appendChild(name);
+
+      for (const [cls, label] of [['inferred','TBD'],['shared_bank','SHARED'],['_missing','MISSING']]) {
+        if (track[cls === '_missing' ? '_missing' : cls === 'shared_bank' ? 'shared_bank' : 'confidence'] ===
+            (cls === 'inferred' ? 'inferred' : true) || (cls === '_missing' && track._missing)) {
+          const b = document.createElement('span');
+          b.className = 'badge ' + (cls === 'inferred' ? 'inferred' : cls === 'shared_bank' ? 'shared' : 'missing');
+          b.textContent = label;
+          item.appendChild(b);
+        }
+      }
+
+      if (!track._missing) item.addEventListener('click', () => selectTrack(idx));
+      container.appendChild(item);
+      allTracks.push({ track, element: item });
+    }
+  }
+
+  // Controls
+  document.getElementById('btn-play').addEventListener('click', () => {
+    if (currentIndex >= 0) playTrack(allTracks[currentIndex]?.track);
+  });
+  document.getElementById('btn-stop').addEventListener('click', stopAll);
+  document.getElementById('btn-prev').addEventListener('click', () => { if (currentIndex > 0) selectTrack(currentIndex - 1); });
+  document.getElementById('btn-next').addEventListener('click', () => { if (currentIndex < allTracks.length - 1) selectTrack(currentIndex + 1); });
+
+  // Volume
+  const volSlider = document.getElementById('vol-slider');
+  const volVal    = document.getElementById('vol-val');
+  volSlider.addEventListener('input', () => {
+    const v = parseInt(volSlider.value) / 100;
+    volVal.textContent = volSlider.value + '%';
+    if (masterGain) masterGain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.02);
+  });
+
+  // Pitch slider (for WAV preview)
+  const slider = document.getElementById('pitch-slider');
+  slider.addEventListener('input', () => {
+    const st = parseInt(slider.value);
+    document.getElementById('pitch-val').textContent = (st >= 0 ? '+' : '') + st + ' st';
+  });
+  document.getElementById('pitch-reset').addEventListener('click', () => {
+    slider.value = 0;
+    document.getElementById('pitch-val').textContent = '0 st';
+  });
+
+  document.getElementById('search').addEventListener('input', e => filterTracks(e.target.value));
+}
+
+// ---------------------------------------------------------------------------
+// Track selection
+// ---------------------------------------------------------------------------
+function selectTrack(idx) {
+  if (idx < 0 || idx >= allTracks.length) return;
+  if (currentIndex >= 0) allTracks[currentIndex]?.element.classList.remove('active');
+  currentIndex = idx;
+  const { track, element } = allTracks[idx];
+  element.classList.add('active');
+  element.scrollIntoView({ block: 'nearest' });
+  updateNowPlaying(track);
+  updateControls(true);
+  loadWavSamples(track);
+  stopAll();
+  document.getElementById('playback-status').textContent = 'Ready — press ▶ Play';
+}
+
+function updateNowPlaying(track) {
+  if (!track) return;
+  document.getElementById('np-name').textContent =
+    track.sndtest_name || track.seq?.replace(/\.SEQ$/i, '') || 'Unknown';
+  const rows = [];
+  if (track.sndtest_name) rows.push(['SNDTEST', track.sndtest_name]);
+  if (track.seq)  rows.push(['SEQ File', track.seq]);
+  if (track.bin)  rows.push(['BIN Bank', track.bin + (track.shared_bank ? ' (shared)' : '')]);
+  if (track.confidence) {
+    const conf = track.confidence === 'exact'
+      ? '<span class="accent">exact</span>'
+      : '<span style="color:var(--orange)">inferred — verify by ear</span>';
+    rows.push(['Confidence', `__HTML__${conf}`]);
+  }
+  if (track.category) rows.push(['Category', track.category]);
+  document.getElementById('np-meta').innerHTML = rows.map(([k, v]) => {
+    const val = v.startsWith?.('__HTML__') ? v.slice(8) : `<span class="meta-value">${escHtml(v)}</span>`;
+    return `<span class="meta-label">${escHtml(k)}</span>${val}`;
+  }).join('');
+}
+
+function updateControls(enabled) {
+  ['btn-play','btn-stop','btn-prev','btn-next'].forEach(id => {
+    document.getElementById(id).disabled = !enabled;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Playback — fetch MIDI, build samplers, schedule notes
+// ---------------------------------------------------------------------------
+let _currentSamplers = null;
+let _currentBank = null;   // tracks which BIN bank the current samplers were built from
+
+async function playTrack(track) {
+  if (!track?.seq) {
+    document.getElementById('playback-status').textContent = 'No MIDI available.';
+    return;
+  }
+
+  stopAll();
+  ensureAudioCtx();   // must be in user-gesture path
+
+  const seqStem = track.seq.replace(/\.SEQ$/i, '');
+  document.getElementById('playback-status').textContent = 'Loading Tone.js…';
+
+  try {
+    await loadTone();
+    await Tone.start();   // resume AudioContext (required by Chrome autoplay policy)
+    initToneAudio();      // wire Tone's context into our gain/analyser chain (idempotent)
+
+    document.getElementById('playback-status').textContent = 'Loading MIDI…';
+
+    // Fetch MIDI
+    const midiResp = await fetch(`${SERVER}/midi/${encodeURIComponent(seqStem + '.mid')}`);
+    if (!midiResp.ok) throw new Error(`MIDI fetch HTTP ${midiResp.status}`);
+    const midiBuffer = await midiResp.arrayBuffer();
+    const midiData   = parseMidi(midiBuffer);
+
+    document.getElementById('playback-status').textContent = 'Loading instrument samples…';
+
+    // Build samplers — reuse only when the BIN bank is the same (different tracks often share banks)
+    const thisBank = track.wav_dir ? track.wav_dir.split(/[/\\]/).pop() : null;
+    if (!_currentSamplers || _currentBank !== thisBank) {
+      _currentSamplers = await buildSamplers(track);
+      _currentBank = thisBank;
+    }
+
+    midiScheduler = new MidiScheduler(midiData, _currentSamplers, masterGain);
+    midiScheduler.start();
+    startProgress(midiScheduler);
+
+    document.getElementById('playback-status').textContent = `▶ Playing: ${seqStem}`;
+    document.getElementById('btn-stop').classList.add('stop-active');
+
+  } catch(e) {
+    document.getElementById('playback-status').textContent = `Error: ${e.message}`;
+    console.error('Playback error:', e);
+  }
+}
+
+function stopAll() {
+  if (midiScheduler) {
+    midiScheduler.stop();
+    midiScheduler = null;
+  }
+  stopProgress();
+  stopWav();
+  document.getElementById('btn-stop').classList.remove('stop-active');
+  const status = document.getElementById('playback-status');
+  if (status.textContent.startsWith('▶')) {
+    status.textContent = 'Stopped';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WAV sample preview (instrument audition — unchanged from previous version)
+// ---------------------------------------------------------------------------
+async function loadWavSamples(track) {
+  const container = document.getElementById('wav-list');
+  _currentSamplers = null;   // force sampler rebuild on next play
+
+  container.innerHTML = '<span style="color:var(--text-dim);font-size:12px">Loading…</span>';
+  if (!track.wav_dir) {
+    container.innerHTML = '<span style="color:var(--text-dim);font-size:12px">No WAV bank for this track.</span>';
+    return;
+  }
+  const bank = track.wav_dir.split(/[/\\]/).pop();
+  let files;
+  try {
+    const resp = await fetch(`${SERVER}/wav_list/${encodeURIComponent(bank)}`);
+    files = await resp.json();
+  } catch(e) {
+    container.innerHTML = `<span style="color:var(--red);font-size:12px">Error: ${e.message}</span>`;
+    return;
+  }
+  if (!files?.length) {
+    container.innerHTML = '<span style="color:var(--text-dim);font-size:12px">No WAV samples in this bank.</span>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const fname of files) {
+    const label = parseSampleLabel(fname);
+    const btn = document.createElement('button');
+    btn.className = 'wav-btn';
+    btn.title = fname;
+    btn.innerHTML = `▶ <span>${label}</span>`;
+    btn.addEventListener('click', () => playWav(bank, fname, btn));
+    container.appendChild(btn);
+  }
+}
+
+function parseSampleLabel(fname) {
+  const m = fname.match(/sample_(\d+)_at0x[0-9a-f]+_(\d+)bit.*?(\d+)hz/i);
+  if (m) return `s${m[1]} ${m[2]}b ${Number(m[3]).toLocaleString()}Hz`;
+  return fname.replace('.wav', '');
+}
+
+async function playWav(bank, fname, btn) {
+  if (activeWavBtn === btn) { stopWav(); return; }
+  stopWav();
+  ensureAudioCtx();
+
+  const semitones = parseInt(document.getElementById('pitch-slider').value);
+  const playbackRate = Math.pow(2, semitones / 12);
+  const url = `${SERVER}/wav/${encodeURIComponent(bank)}/${encodeURIComponent(fname)}`;
+
+  let arrayBuffer, decoded;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    arrayBuffer = await resp.arrayBuffer();
+    decoded = await audioCtx.decodeAudioData(arrayBuffer);
+  } catch(e) { console.error('WAV error:', e); return; }
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = decoded;
+  src.playbackRate.value = playbackRate;
+  src.connect(masterGain);
+  src.start();
+  activeWavSource = src;
+  activeWavBtn = btn;
+  btn.classList.add('playing');
+  src.onended = () => {
+    if (activeWavSource === src) { activeWavSource = null; activeWavBtn = null; btn.classList.remove('playing'); }
+  };
+}
+
+function stopWav() {
+  if (activeWavSource) { try { activeWavSource.stop(); } catch(e) {} activeWavSource = null; }
+  if (activeWavBtn)    { activeWavBtn.classList.remove('playing'); activeWavBtn = null; }
+}
+
+// ---------------------------------------------------------------------------
+// Search / filter
+// ---------------------------------------------------------------------------
+function filterTracks(query) {
+  const q = query.trim().toLowerCase();
+  const container = document.getElementById('track-list');
+  let lastHdr = null, lastVis = false;
+  for (const child of container.children) {
+    if (child.classList.contains('section-header')) {
+      if (lastHdr) lastHdr.style.display = lastVis ? '' : 'none';
+      lastHdr = child; lastVis = false; continue;
+    }
+    const visible = !q || child.textContent.toLowerCase().includes(q);
+    child.style.display = visible ? '' : 'none';
+    if (visible) lastVis = true;
+  }
+  if (lastHdr) lastHdr.style.display = lastVis ? '' : 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  b.textContent = msg; b.style.display = 'block';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Boot
+loadCatalogue();
+</script>
+</body>
+</html>

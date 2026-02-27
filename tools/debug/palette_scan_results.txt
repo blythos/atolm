@@ -1,0 +1,421 @@
+Scanning 61 target files on disc for 6 CRAM dumps...
+
+--- Analyzing above-excavation.savestate.cram.bin ---
+  [512B] Found CRAM 0x000 in FLD_A3.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in FLD_A3.PRG at file offset 0x478
+  [512B] Found CRAM 0x400 in FLD_A3.PRG at file offset 0x678
+  [512B] Found CRAM 0x600 in FLD_A3.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in FLD_A3.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in FLD_A3.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in FLD_A3.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in FLD_A3.PRG at file offset 0x1078
+
+--- Analyzing map.savestate.cram.bin ---
+  [512B] Found CRAM 0x000 in FLD_A3.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in FLD_A3.PRG at file offset 0x478
+  [512B] Found CRAM 0x400 in FLD_A3.PRG at file offset 0x678
+  [512B] Found CRAM 0x600 in FLD_A3.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in FLD_A3.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in FLD_A3.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in FLD_A3.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in FLD_A3.PRG at file offset 0x1078
+
+--- Analyzing menu.savestate.cram.bin ---
+  [512B] Found CRAM 0x000 in FLD_A3.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in FLD_A3.PRG at file offset 0x478
+  [512B] Found CRAM 0x400 in FLD_A3.PRG at file offset 0x678
+  [512B] Found CRAM 0x600 in FLD_A3.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in FLD_A3.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in FLD_A3.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in FLD_A3.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in FLD_A3.PRG at file offset 0x1078
+
+--- Analyzing name-entry.savestate.cram.bin ---
+  [ 32B] Found CRAM 0xFE0 in BTL_D5.PRG at file offset 0x2FA8
+  [512B] Found CRAM 0x000 in FLD_D5.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in FLD_D5.PRG at file offset 0x478
+  [512B] Found CRAM 0x400 in FLD_D5.PRG at file offset 0x678
+  [512B] Found CRAM 0x600 in FLD_D5.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in FLD_D5.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in FLD_D5.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in FLD_D5.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in FLD_D5.PRG at file offset 0x1078
+
+--- Analyzing ruins-botton-floor.savestate.cram.bin ---
+  [ 32B] Found CRAM 0x900 in BTL_A3.PRG at file offset 0x454
+  [ 32B] Found CRAM 0x920 in BTL_A3.PRG at file offset 0x474
+  [ 32B] Found CRAM 0xB00 in BTL_A3.PRG at file offset 0x3B8
+  [ 32B] Found CRAM 0xD60 in BTL_A3.PRG at file offset 0x5AA
+  [ 32B] Found CRAM 0xEC0 in BTL_A3.PRG at file offset 0x724
+  [ 32B] Found CRAM 0xEE0 in BTL_A3.PRG at file offset 0x744
+  [ 32B] Found CRAM 0xF60 in BTL_A3.PRG at file offset 0x7C0
+  [ 32B] Found CRAM 0xFA0 in BTL_A3.PRG at file offset 0x800
+  [ 32B] Found CRAM 0xFE0 in BTL_A3.PRG at file offset 0x83E
+  [ 32B] Found CRAM 0xB00 in BTL_A3_2.PRG at file offset 0x2B4
+  [ 32B] Found CRAM 0xD60 in BTL_A3_2.PRG at file offset 0x546
+  [ 32B] Found CRAM 0xEC0 in BTL_A3_2.PRG at file offset 0x6A0
+  [ 32B] Found CRAM 0xEE0 in BTL_A3_2.PRG at file offset 0x6C0
+  [ 32B] Found CRAM 0xF60 in BTL_A3_2.PRG at file offset 0x73C
+  [ 32B] Found CRAM 0xFA0 in BTL_A3_2.PRG at file offset 0x77C
+  [ 32B] Found CRAM 0xFE0 in BTL_A3_2.PRG at file offset 0x7BA
+  [ 32B] Found CRAM 0xB00 in BTL_A5.PRG at file offset 0x5EE8
+  [ 32B] Found CRAM 0xD60 in BTL_A5.PRG at file offset 0x63D2
+  [ 32B] Found CRAM 0xEC0 in BTL_A5.PRG at file offset 0x652C
+  [ 32B] Found CRAM 0xEE0 in BTL_A5.PRG at file offset 0x654C
+  [ 32B] Found CRAM 0xF60 in BTL_A5.PRG at file offset 0x65C8
+  [ 32B] Found CRAM 0xFA0 in BTL_A5.PRG at file offset 0x6608
+  [ 32B] Found CRAM 0xFE0 in BTL_A5.PRG at file offset 0x6646
+  [ 32B] Found CRAM 0xB00 in BTL_A5_2.PRG at file offset 0xE48C
+  [ 32B] Found CRAM 0xF60 in BTL_A5_2.PRG at file offset 0xE88C
+  [ 32B] Found CRAM 0xFA0 in BTL_A5_2.PRG at file offset 0xE8CC
+  [ 32B] Found CRAM 0xB00 in BTL_A5_3.PRG at file offset 0x3824
+  [ 32B] Found CRAM 0xD60 in BTL_A5_3.PRG at file offset 0x3A7A
+  [ 32B] Found CRAM 0xEC0 in BTL_A5_3.PRG at file offset 0x3BD4
+  [ 32B] Found CRAM 0xEE0 in BTL_A5_3.PRG at file offset 0x3BF4
+  [ 32B] Found CRAM 0xF60 in BTL_A5_3.PRG at file offset 0x3C70
+  [ 32B] Found CRAM 0xFA0 in BTL_A5_3.PRG at file offset 0x3CB0
+  [ 32B] Found CRAM 0xFE0 in BTL_A5_3.PRG at file offset 0x3CEE
+  [ 32B] Found CRAM 0x900 in BTL_A7.PRG at file offset 0x1C30
+  [ 32B] Found CRAM 0x920 in BTL_A7.PRG at file offset 0x1C50
+  [ 32B] Found CRAM 0xEC0 in BTL_A7.PRG at file offset 0x244C
+  [ 32B] Found CRAM 0xEE0 in BTL_A7.PRG at file offset 0x246C
+  [ 32B] Found CRAM 0xF60 in BTL_A7.PRG at file offset 0x24E8
+  [ 32B] Found CRAM 0xFA0 in BTL_A7.PRG at file offset 0x2528
+  [ 32B] Found CRAM 0xFE0 in BTL_A7.PRG at file offset 0x2566
+  [ 32B] Found CRAM 0x900 in BTL_A7_2.PRG at file offset 0x39B4
+  [ 32B] Found CRAM 0x920 in BTL_A7_2.PRG at file offset 0x39D4
+  [ 32B] Found CRAM 0xEC0 in BTL_A7_2.PRG at file offset 0x3B20
+  [ 32B] Found CRAM 0xEE0 in BTL_A7_2.PRG at file offset 0x3B40
+  [ 32B] Found CRAM 0xF60 in BTL_A7_2.PRG at file offset 0x3BBC
+  [ 32B] Found CRAM 0xFA0 in BTL_A7_2.PRG at file offset 0x3BFC
+  [ 32B] Found CRAM 0xFE0 in BTL_A7_2.PRG at file offset 0x3C3A
+  [ 32B] Found CRAM 0x900 in BTL_B2.PRG at file offset 0xB8
+  [ 32B] Found CRAM 0x920 in BTL_B2.PRG at file offset 0xD8
+  [ 32B] Found CRAM 0xEC0 in BTL_B2.PRG at file offset 0x224
+  [ 32B] Found CRAM 0xEE0 in BTL_B2.PRG at file offset 0x244
+  [ 32B] Found CRAM 0xF60 in BTL_B2.PRG at file offset 0x2C0
+  [ 32B] Found CRAM 0xFA0 in BTL_B2.PRG at file offset 0x300
+  [ 32B] Found CRAM 0xFE0 in BTL_B2.PRG at file offset 0x33E
+  [ 32B] Found CRAM 0x900 in BTL_B5.PRG at file offset 0x4FC4
+  [ 32B] Found CRAM 0x920 in BTL_B5.PRG at file offset 0x4FE4
+  [ 32B] Found CRAM 0xEC0 in BTL_B5.PRG at file offset 0x58E0
+  [ 32B] Found CRAM 0xEE0 in BTL_B5.PRG at file offset 0x5900
+  [ 32B] Found CRAM 0xF60 in BTL_B5.PRG at file offset 0x597C
+  [ 32B] Found CRAM 0xFA0 in BTL_B5.PRG at file offset 0x59BC
+  [ 32B] Found CRAM 0xFE0 in BTL_B5.PRG at file offset 0x59FA
+  [ 32B] Found CRAM 0x900 in BTL_B5_2.PRG at file offset 0xC5D8
+  [ 32B] Found CRAM 0x920 in BTL_B5_2.PRG at file offset 0xC5F8
+  [ 32B] Found CRAM 0xD60 in BTL_B5_2.PRG at file offset 0xCB96
+  [ 32B] Found CRAM 0xE20 in BTL_B5_2.PRG at file offset 0xCC50
+  [ 32B] Found CRAM 0xE40 in BTL_B5_2.PRG at file offset 0xCC70
+  [ 32B] Found CRAM 0xE60 in BTL_B5_2.PRG at file offset 0xCC90
+  [ 32B] Found CRAM 0xE80 in BTL_B5_2.PRG at file offset 0xCCB0
+  [ 32B] Found CRAM 0xEC0 in BTL_B5_2.PRG at file offset 0xCCF0
+  [ 32B] Found CRAM 0xEE0 in BTL_B5_2.PRG at file offset 0xCD10
+  [ 32B] Found CRAM 0xF60 in BTL_B5_2.PRG at file offset 0xCD8C
+  [ 32B] Found CRAM 0xFA0 in BTL_B5_2.PRG at file offset 0xCDCC
+  [ 32B] Found CRAM 0xFE0 in BTL_B5_2.PRG at file offset 0xCE0A
+  [ 32B] Found CRAM 0x900 in BTL_B5_3.PRG at file offset 0x1564
+  [ 32B] Found CRAM 0x920 in BTL_B5_3.PRG at file offset 0x1584
+  [ 32B] Found CRAM 0xD60 in BTL_B5_3.PRG at file offset 0x1CAE
+  [ 32B] Found CRAM 0xE20 in BTL_B5_3.PRG at file offset 0x1D68
+  [ 32B] Found CRAM 0xE40 in BTL_B5_3.PRG at file offset 0x1D88
+  [ 32B] Found CRAM 0xE60 in BTL_B5_3.PRG at file offset 0x1DA8
+  [ 32B] Found CRAM 0xE80 in BTL_B5_3.PRG at file offset 0x1DC8
+  [ 32B] Found CRAM 0xEC0 in BTL_B5_3.PRG at file offset 0x1E08
+  [ 32B] Found CRAM 0xEE0 in BTL_B5_3.PRG at file offset 0x1E28
+  [ 32B] Found CRAM 0xF60 in BTL_B5_3.PRG at file offset 0x1EA4
+  [ 32B] Found CRAM 0xFA0 in BTL_B5_3.PRG at file offset 0x1EE4
+  [ 32B] Found CRAM 0xFE0 in BTL_B5_3.PRG at file offset 0x1F22
+  [ 32B] Found CRAM 0x900 in BTL_B6.PRG at file offset 0x65C
+  [ 32B] Found CRAM 0x920 in BTL_B6.PRG at file offset 0x67C
+  [ 32B] Found CRAM 0xC80 in BTL_B6.PRG at file offset 0xAD0
+  [ 32B] Found CRAM 0xCA0 in BTL_B6.PRG at file offset 0xAF0
+  [ 32B] Found CRAM 0xCC0 in BTL_B6.PRG at file offset 0xB10
+  [ 32B] Found CRAM 0xD00 in BTL_B6.PRG at file offset 0xB50
+  [ 32B] Found CRAM 0xD20 in BTL_B6.PRG at file offset 0xB70
+  [ 32B] Found CRAM 0xD40 in BTL_B6.PRG at file offset 0xB90
+  [ 32B] Found CRAM 0xD60 in BTL_B6.PRG at file offset 0xBB0
+  [ 32B] Found CRAM 0xD80 in BTL_B6.PRG at file offset 0xBD0
+  [ 32B] Found CRAM 0xDA0 in BTL_B6.PRG at file offset 0xBF0
+  [ 32B] Found CRAM 0xDC0 in BTL_B6.PRG at file offset 0xC10
+  [ 32B] Found CRAM 0xE00 in BTL_B6.PRG at file offset 0xC50
+  [ 32B] Found CRAM 0xE20 in BTL_B6.PRG at file offset 0xC70
+  [ 32B] Found CRAM 0xE40 in BTL_B6.PRG at file offset 0xC90
+  [ 32B] Found CRAM 0xE60 in BTL_B6.PRG at file offset 0xCB0
+  [ 32B] Found CRAM 0xE80 in BTL_B6.PRG at file offset 0xCD0
+  [ 32B] Found CRAM 0xEA0 in BTL_B6.PRG at file offset 0xCF0
+  [ 32B] Found CRAM 0xF60 in BTL_B6.PRG at file offset 0xDBE
+  [ 32B] Found CRAM 0xFA0 in BTL_B6.PRG at file offset 0xDFE
+  [ 32B] Found CRAM 0xFE0 in BTL_B6.PRG at file offset 0xE3C
+  [ 32B] Found CRAM 0x900 in BTL_B6_2.PRG at file offset 0xB0
+  [ 32B] Found CRAM 0x920 in BTL_B6_2.PRG at file offset 0xD0
+  [ 32B] Found CRAM 0xD60 in BTL_B6_2.PRG at file offset 0x6E2
+  [ 32B] Found CRAM 0xE20 in BTL_B6_2.PRG at file offset 0x79C
+  [ 32B] Found CRAM 0xE40 in BTL_B6_2.PRG at file offset 0x7BC
+  [ 32B] Found CRAM 0xE60 in BTL_B6_2.PRG at file offset 0x7DC
+  [ 32B] Found CRAM 0xE80 in BTL_B6_2.PRG at file offset 0x7FC
+  [ 32B] Found CRAM 0xEC0 in BTL_B6_2.PRG at file offset 0x83C
+  [ 32B] Found CRAM 0xEE0 in BTL_B6_2.PRG at file offset 0x85C
+  [ 32B] Found CRAM 0xF60 in BTL_B6_2.PRG at file offset 0x8D8
+  [ 32B] Found CRAM 0xFA0 in BTL_B6_2.PRG at file offset 0x918
+  [ 32B] Found CRAM 0xFE0 in BTL_B6_2.PRG at file offset 0x956
+  [ 32B] Found CRAM 0x900 in BTL_C2.PRG at file offset 0xE8
+  [ 32B] Found CRAM 0x920 in BTL_C2.PRG at file offset 0x108
+  [ 32B] Found CRAM 0xEA0 in BTL_C2.PRG at file offset 0x9E0
+  [ 32B] Found CRAM 0xEC0 in BTL_C2.PRG at file offset 0xA00
+  [ 32B] Found CRAM 0xEE0 in BTL_C2.PRG at file offset 0xA20
+  [ 32B] Found CRAM 0xF60 in BTL_C2.PRG at file offset 0xA9C
+  [ 32B] Found CRAM 0xFA0 in BTL_C2.PRG at file offset 0xADC
+  [ 32B] Found CRAM 0xFE0 in BTL_C2.PRG at file offset 0xB1A
+  [ 32B] Found CRAM 0x900 in BTL_C2_2.PRG at file offset 0xB0
+  [ 32B] Found CRAM 0x920 in BTL_C2_2.PRG at file offset 0xD0
+  [ 32B] Found CRAM 0xEC0 in BTL_C2_2.PRG at file offset 0x864
+  [ 32B] Found CRAM 0xEE0 in BTL_C2_2.PRG at file offset 0x884
+  [ 32B] Found CRAM 0xF60 in BTL_C2_2.PRG at file offset 0x900
+  [ 32B] Found CRAM 0xFA0 in BTL_C2_2.PRG at file offset 0x940
+  [ 32B] Found CRAM 0xFE0 in BTL_C2_2.PRG at file offset 0x97E
+  [ 32B] Found CRAM 0xF20 in BTL_C4.PRG at file offset 0x844
+  [ 32B] Found CRAM 0xF40 in BTL_C4.PRG at file offset 0x864
+  [ 32B] Found CRAM 0xF60 in BTL_C4.PRG at file offset 0x884
+  [ 32B] Found CRAM 0xF80 in BTL_C4.PRG at file offset 0x8A4
+  [ 32B] Found CRAM 0xFA0 in BTL_C4.PRG at file offset 0x8C4
+  [ 32B] Found CRAM 0xFE0 in BTL_C4.PRG at file offset 0x902
+  [ 32B] Found CRAM 0x900 in BTL_C5.PRG at file offset 0xF4
+  [ 32B] Found CRAM 0x920 in BTL_C5.PRG at file offset 0x114
+  [ 32B] Found CRAM 0xEC0 in BTL_C5.PRG at file offset 0x260
+  [ 32B] Found CRAM 0xEE0 in BTL_C5.PRG at file offset 0x280
+  [ 32B] Found CRAM 0xF60 in BTL_C5.PRG at file offset 0x2FC
+  [ 32B] Found CRAM 0xFA0 in BTL_C5.PRG at file offset 0x33C
+  [ 32B] Found CRAM 0xFE0 in BTL_C5.PRG at file offset 0x37A
+  [ 32B] Found CRAM 0x900 in BTL_C5_2.PRG at file offset 0x2E6C
+  [ 32B] Found CRAM 0x920 in BTL_C5_2.PRG at file offset 0x2E8C
+  [ 32B] Found CRAM 0xEC0 in BTL_C5_2.PRG at file offset 0x2FD8
+  [ 32B] Found CRAM 0xEE0 in BTL_C5_2.PRG at file offset 0x2FF8
+  [ 32B] Found CRAM 0xF60 in BTL_C5_2.PRG at file offset 0x3074
+  [ 32B] Found CRAM 0xFA0 in BTL_C5_2.PRG at file offset 0x30B4
+  [ 32B] Found CRAM 0xFE0 in BTL_C5_2.PRG at file offset 0x30F2
+  [ 32B] Found CRAM 0xD60 in BTL_C8_2.PRG at file offset 0x340C
+  [ 32B] Found CRAM 0xE00 in BTL_C8_2.PRG at file offset 0x34B4
+  [ 32B] Found CRAM 0xEC0 in BTL_D2.PRG at file offset 0x700
+  [ 32B] Found CRAM 0xEE0 in BTL_D2.PRG at file offset 0x720
+  [ 32B] Found CRAM 0xF60 in BTL_D2.PRG at file offset 0x79C
+  [ 32B] Found CRAM 0xFA0 in BTL_D2.PRG at file offset 0x7DC
+  [ 32B] Found CRAM 0xFE0 in BTL_D2.PRG at file offset 0x81A
+  [ 32B] Found CRAM 0xEC0 in BTL_D2_2.PRG at file offset 0x4500
+  [ 32B] Found CRAM 0xEE0 in BTL_D2_2.PRG at file offset 0x4520
+  [ 32B] Found CRAM 0xF60 in BTL_D2_2.PRG at file offset 0x459C
+  [ 32B] Found CRAM 0xFA0 in BTL_D2_2.PRG at file offset 0x45DC
+  [ 32B] Found CRAM 0xFE0 in BTL_D2_2.PRG at file offset 0x461A
+  [ 32B] Found CRAM 0x900 in BTL_D5.PRG at file offset 0x9B4
+  [ 32B] Found CRAM 0x920 in BTL_D5.PRG at file offset 0x9D4
+  [ 32B] Found CRAM 0xD60 in BTL_D5.PRG at file offset 0x19EA
+  [ 32B] Found CRAM 0xDA0 in BTL_D5.PRG at file offset 0x2224
+  [ 32B] Found CRAM 0xEC0 in BTL_D5.PRG at file offset 0x818
+  [ 32B] Found CRAM 0xEE0 in BTL_D5.PRG at file offset 0x838
+  [ 32B] Found CRAM 0xF20 in BTL_D5.PRG at file offset 0x23FC
+  [ 32B] Found CRAM 0xF40 in BTL_D5.PRG at file offset 0x241C
+  [ 32B] Found CRAM 0xF60 in BTL_D5.PRG at file offset 0x8B4
+  [ 32B] Found CRAM 0xF80 in BTL_D5.PRG at file offset 0x245C
+  [ 32B] Found CRAM 0xFA0 in BTL_D5.PRG at file offset 0x8F4
+  [ 32B] Found CRAM 0xFE0 in BTL_D5.PRG at file offset 0x932
+  [ 32B] Found CRAM 0xB00 in BTL_T0.PRG at file offset 0x40D4
+  [ 32B] Found CRAM 0xC80 in BTL_T0.PRG at file offset 0x41E0
+  [ 32B] Found CRAM 0xCA0 in BTL_T0.PRG at file offset 0x4200
+  [ 32B] Found CRAM 0xD60 in BTL_T0.PRG at file offset 0x42BA
+  [ 32B] Found CRAM 0xEC0 in BTL_T0.PRG at file offset 0x4430
+  [ 32B] Found CRAM 0xEE0 in BTL_T0.PRG at file offset 0x4450
+  [ 32B] Found CRAM 0xF60 in BTL_T0.PRG at file offset 0x44CC
+  [ 32B] Found CRAM 0xFA0 in BTL_T0.PRG at file offset 0x450C
+  [ 32B] Found CRAM 0xFE0 in BTL_T0.PRG at file offset 0x454A
+  [ 32B] Found CRAM 0x900 in BTL_X0.PRG at file offset 0x9EC
+  [ 32B] Found CRAM 0x920 in BTL_X0.PRG at file offset 0xA0C
+  [ 32B] Found CRAM 0xD60 in BTL_X0.PRG at file offset 0x10C6
+  [ 32B] Found CRAM 0xE20 in BTL_X0.PRG at file offset 0x1180
+  [ 32B] Found CRAM 0xE40 in BTL_X0.PRG at file offset 0x11A0
+  [ 32B] Found CRAM 0xE60 in BTL_X0.PRG at file offset 0x11C0
+  [ 32B] Found CRAM 0xE80 in BTL_X0.PRG at file offset 0x11E0
+  [ 32B] Found CRAM 0xEC0 in BTL_X0.PRG at file offset 0x1220
+  [ 32B] Found CRAM 0xEE0 in BTL_X0.PRG at file offset 0x1240
+  [ 32B] Found CRAM 0xF60 in BTL_X0.PRG at file offset 0x8EA
+  [ 32B] Found CRAM 0xFA0 in BTL_X0.PRG at file offset 0x92A
+  [ 32B] Found CRAM 0xFE0 in BTL_X0.PRG at file offset 0x968
+  [ 32B] Found CRAM 0x8E0 in FLD_A3.PRG at file offset 0x48F8
+  [ 32B] Found CRAM 0x900 in FLD_A3.PRG at file offset 0x4918
+  [ 32B] Found CRAM 0x920 in FLD_A3.PRG at file offset 0x4938
+  [ 32B] Found CRAM 0x940 in FLD_A3.PRG at file offset 0x4958
+  [ 32B] Found CRAM 0xD60 in FLD_A3.PRG at file offset 0x4FFE
+  [ 32B] Found CRAM 0xEC0 in FLD_A3.PRG at file offset 0x5138
+  [ 32B] Found CRAM 0xEE0 in FLD_A3.PRG at file offset 0x5158
+  [ 32B] Found CRAM 0xF60 in FLD_A3.PRG at file offset 0x51D4
+  [ 32B] Found CRAM 0xFA0 in FLD_A3.PRG at file offset 0x5214
+  [ 32B] Found CRAM 0xFE0 in FLD_A3.PRG at file offset 0x5252
+  [ 32B] Found CRAM 0xC80 in FLD_A5.PRG at file offset 0x9FD8
+  [ 32B] Found CRAM 0xCA0 in FLD_A5.PRG at file offset 0x9FF8
+  [ 32B] Found CRAM 0xCC0 in FLD_A5.PRG at file offset 0xA018
+  [ 32B] Found CRAM 0xD00 in FLD_A5.PRG at file offset 0xA058
+  [ 32B] Found CRAM 0xD20 in FLD_A5.PRG at file offset 0xA078
+  [ 32B] Found CRAM 0xD40 in FLD_A5.PRG at file offset 0xA098
+  [ 32B] Found CRAM 0xD60 in FLD_A5.PRG at file offset 0x9104
+  [ 32B] Found CRAM 0xD80 in FLD_A5.PRG at file offset 0xA0D8
+  [ 32B] Found CRAM 0xDA0 in FLD_A5.PRG at file offset 0xA0F8
+  [ 32B] Found CRAM 0xDC0 in FLD_A5.PRG at file offset 0xA118
+  [ 32B] Found CRAM 0xE00 in FLD_A5.PRG at file offset 0xA158
+  [ 32B] Found CRAM 0xE20 in FLD_A5.PRG at file offset 0xA178
+  [ 32B] Found CRAM 0xE40 in FLD_A5.PRG at file offset 0xA198
+  [ 32B] Found CRAM 0xE60 in FLD_A5.PRG at file offset 0xA1B8
+  [ 32B] Found CRAM 0xE80 in FLD_A5.PRG at file offset 0xA1D8
+  [ 32B] Found CRAM 0xEA0 in FLD_A5.PRG at file offset 0x927C
+  [ 32B] Found CRAM 0xEC0 in FLD_A5.PRG at file offset 0x929C
+  [ 32B] Found CRAM 0xEE0 in FLD_A5.PRG at file offset 0x92BC
+  [ 32B] Found CRAM 0xF60 in FLD_A5.PRG at file offset 0x9338
+  [ 32B] Found CRAM 0xFA0 in FLD_A5.PRG at file offset 0x9378
+  [ 32B] Found CRAM 0xFE0 in FLD_A5.PRG at file offset 0x93B6
+  [ 32B] Found CRAM 0x900 in FLD_A7.PRG at file offset 0x3458
+  [ 32B] Found CRAM 0x920 in FLD_A7.PRG at file offset 0x3478
+  [ 32B] Found CRAM 0xEA0 in FLD_A7.PRG at file offset 0x3C78
+  [ 32B] Found CRAM 0xEC0 in FLD_A7.PRG at file offset 0x3C98
+  [ 32B] Found CRAM 0xEE0 in FLD_A7.PRG at file offset 0x3CB8
+  [ 32B] Found CRAM 0xF60 in FLD_A7.PRG at file offset 0x3D34
+  [ 32B] Found CRAM 0xFA0 in FLD_A7.PRG at file offset 0x3D74
+  [ 32B] Found CRAM 0xFE0 in FLD_A7.PRG at file offset 0x3DB2
+  [ 32B] Found CRAM 0x8E0 in FLD_B2.PRG at file offset 0x6590
+  [ 32B] Found CRAM 0x900 in FLD_B2.PRG at file offset 0x65B0
+  [ 32B] Found CRAM 0x920 in FLD_B2.PRG at file offset 0x65D0
+  [ 32B] Found CRAM 0x940 in FLD_B2.PRG at file offset 0x65F0
+  [ 32B] Found CRAM 0xEA0 in FLD_B2.PRG at file offset 0x7240
+  [ 32B] Found CRAM 0xF40 in FLD_B2.PRG at file offset 0x72E4
+  [ 32B] Found CRAM 0xF60 in FLD_B2.PRG at file offset 0x6E30
+  [ 32B] Found CRAM 0xF80 in FLD_B2.PRG at file offset 0x7324
+  [ 32B] Found CRAM 0xFA0 in FLD_B2.PRG at file offset 0x7344
+  [ 32B] Found CRAM 0x900 in FLD_B5.PRG at file offset 0x5398
+  [ 32B] Found CRAM 0x920 in FLD_B5.PRG at file offset 0x53B8
+  [ 32B] Found CRAM 0xC80 in FLD_B5.PRG at file offset 0x6364
+  [ 32B] Found CRAM 0xCA0 in FLD_B5.PRG at file offset 0x6384
+  [ 32B] Found CRAM 0xD20 in FLD_B5.PRG at file offset 0x6404
+  [ 32B] Found CRAM 0xD40 in FLD_B5.PRG at file offset 0x6424
+  [ 32B] Found CRAM 0xD60 in FLD_B5.PRG at file offset 0x5B0C
+  [ 32B] Found CRAM 0xD80 in FLD_B5.PRG at file offset 0x6464
+  [ 32B] Found CRAM 0xDA0 in FLD_B5.PRG at file offset 0x6484
+  [ 32B] Found CRAM 0xE00 in FLD_B5.PRG at file offset 0x64E4
+  [ 32B] Found CRAM 0xEA0 in FLD_B5.PRG at file offset 0x5C8C
+  [ 32B] Found CRAM 0xEC0 in FLD_B5.PRG at file offset 0x5CAC
+  [ 32B] Found CRAM 0xEE0 in FLD_B5.PRG at file offset 0x5CCC
+  [ 32B] Found CRAM 0xF60 in FLD_B5.PRG at file offset 0x5D48
+  [ 32B] Found CRAM 0xFA0 in FLD_B5.PRG at file offset 0x5D88
+  [ 32B] Found CRAM 0xFE0 in FLD_B5.PRG at file offset 0x5DC6
+  [ 32B] Found CRAM 0xF60 in FLD_B6.PRG at file offset 0x67BA
+  [ 32B] Found CRAM 0xFA0 in FLD_B6.PRG at file offset 0x67FA
+  [ 32B] Found CRAM 0xFE0 in FLD_B6.PRG at file offset 0x6838
+  [ 32B] Found CRAM 0x900 in FLD_C2.PRG at file offset 0x6D4C
+  [ 32B] Found CRAM 0x920 in FLD_C2.PRG at file offset 0x6D6C
+  [ 32B] Found CRAM 0xEA0 in FLD_C2.PRG at file offset 0x75C8
+  [ 32B] Found CRAM 0xEC0 in FLD_C2.PRG at file offset 0x75E8
+  [ 32B] Found CRAM 0xEE0 in FLD_C2.PRG at file offset 0x7608
+  [ 32B] Found CRAM 0xF60 in FLD_C2.PRG at file offset 0x7684
+  [ 32B] Found CRAM 0xFA0 in FLD_C2.PRG at file offset 0x76C4
+  [ 32B] Found CRAM 0xFE0 in FLD_C2.PRG at file offset 0x7702
+  [ 32B] Found CRAM 0x900 in FLD_C4.PRG at file offset 0xDF70
+  [ 32B] Found CRAM 0x920 in FLD_C4.PRG at file offset 0xDF90
+  [ 32B] Found CRAM 0xC80 in FLD_C4.PRG at file offset 0xFCA8
+  [ 32B] Found CRAM 0xEA0 in FLD_C4.PRG at file offset 0xE098
+  [ 32B] Found CRAM 0xEC0 in FLD_C4.PRG at file offset 0xE0B8
+  [ 32B] Found CRAM 0xEE0 in FLD_C4.PRG at file offset 0xE0D8
+  [ 32B] Found CRAM 0xF60 in FLD_C4.PRG at file offset 0xE154
+  [ 32B] Found CRAM 0xFA0 in FLD_C4.PRG at file offset 0xE194
+  [ 32B] Found CRAM 0xFE0 in FLD_C4.PRG at file offset 0xE1D2
+  [ 32B] Found CRAM 0xD60 in FLD_C8.PRG at file offset 0xB384
+  [ 32B] Found CRAM 0xDA0 in FLD_D2.PRG at file offset 0x61D4
+  [ 32B] Found CRAM 0xEA0 in FLD_D2.PRG at file offset 0x6324
+  [ 32B] Found CRAM 0xEC0 in FLD_D2.PRG at file offset 0x6344
+  [ 32B] Found CRAM 0xEE0 in FLD_D2.PRG at file offset 0x6364
+  [ 32B] Found CRAM 0xF60 in FLD_D2.PRG at file offset 0x63E0
+  [ 32B] Found CRAM 0xFA0 in FLD_D2.PRG at file offset 0x6420
+  [ 32B] Found CRAM 0xFE0 in FLD_D2.PRG at file offset 0x645E
+  [ 32B] Found CRAM 0x8E0 in FLD_D3.PRG at file offset 0x3228
+  [ 32B] Found CRAM 0x900 in FLD_D3.PRG at file offset 0x3248
+  [ 32B] Found CRAM 0x920 in FLD_D3.PRG at file offset 0x3268
+  [ 32B] Found CRAM 0x940 in FLD_D3.PRG at file offset 0x3288
+  [ 32B] Found CRAM 0xF60 in FLD_D3.PRG at file offset 0x38A6
+  [ 32B] Found CRAM 0xFA0 in FLD_D3.PRG at file offset 0x38E6
+  [ 32B] Found CRAM 0x060 in TWN_CAMP.PRG at file offset 0x1AF78
+  [ 32B] Found CRAM 0xD60 in TWN_CAMP.PRG at file offset 0x165EA
+  [ 32B] Found CRAM 0xF60 in TWN_CAMP.PRG at file offset 0x167C0
+  [ 32B] Found CRAM 0xFA0 in TWN_CAMP.PRG at file offset 0x16800
+  [ 32B] Found CRAM 0xFE0 in TWN_CAMP.PRG at file offset 0x16840
+  [ 32B] Found CRAM 0x060 in TWN_CARA.PRG at file offset 0x1F030
+  [ 32B] Found CRAM 0xC80 in TWN_CARA.PRG at file offset 0x1A344
+  [ 32B] Found CRAM 0xD60 in TWN_CARA.PRG at file offset 0x1A416
+  [ 32B] Found CRAM 0xF60 in TWN_CARA.PRG at file offset 0x1A60C
+  [ 32B] Found CRAM 0xFA0 in TWN_CARA.PRG at file offset 0x1A64C
+  [ 32B] Found CRAM 0xFC0 in TWN_CARA.PRG at file offset 0x1A66C
+  [ 32B] Found CRAM 0xFE0 in TWN_CARA.PRG at file offset 0x1A68C
+  [ 32B] Found CRAM 0x060 in TWN_E006.PRG at file offset 0x4F5C
+  [ 32B] Found CRAM 0xD60 in TWN_E006.PRG at file offset 0x5CE
+  [ 32B] Found CRAM 0xF60 in TWN_E006.PRG at file offset 0x7A4
+  [ 32B] Found CRAM 0xFA0 in TWN_E006.PRG at file offset 0x7E4
+  [ 32B] Found CRAM 0xFE0 in TWN_E006.PRG at file offset 0x824
+  [ 32B] Found CRAM 0x060 in TWN_E011.PRG at file offset 0x6008
+  [ 32B] Found CRAM 0xF60 in TWN_E011.PRG at file offset 0x171A
+  [ 32B] Found CRAM 0xFA0 in TWN_E011.PRG at file offset 0x175A
+  [ 32B] Found CRAM 0xFE0 in TWN_E011.PRG at file offset 0x179A
+  [ 32B] Found CRAM 0x060 in TWN_E014.PRG at file offset 0x52A8
+  [ 32B] Found CRAM 0xD60 in TWN_E014.PRG at file offset 0x91A
+  [ 32B] Found CRAM 0xF60 in TWN_E014.PRG at file offset 0xAF0
+  [ 32B] Found CRAM 0xFA0 in TWN_E014.PRG at file offset 0xB30
+  [ 32B] Found CRAM 0xFE0 in TWN_E014.PRG at file offset 0xB70
+  [ 32B] Found CRAM 0x060 in TWN_E021.PRG at file offset 0x58D8
+  [ 32B] Found CRAM 0xB00 in TWN_E021.PRG at file offset 0xDE8
+  [ 32B] Found CRAM 0xF60 in TWN_E021.PRG at file offset 0x1120
+  [ 32B] Found CRAM 0xFA0 in TWN_E021.PRG at file offset 0x1160
+  [ 32B] Found CRAM 0x060 in TWN_E022.PRG at file offset 0x4FF0
+  [ 32B] Found CRAM 0xD60 in TWN_E022.PRG at file offset 0x662
+  [ 32B] Found CRAM 0xF60 in TWN_E022.PRG at file offset 0x838
+  [ 32B] Found CRAM 0xFA0 in TWN_E022.PRG at file offset 0x878
+  [ 32B] Found CRAM 0xFE0 in TWN_E022.PRG at file offset 0x8B8
+  [ 32B] Found CRAM 0x060 in TWN_EXCA.PRG at file offset 0x68D8
+  [ 32B] Found CRAM 0x800 in TWN_EXCA.PRG at file offset 0xD3C
+  [ 32B] Found CRAM 0xD60 in TWN_EXCA.PRG at file offset 0x1F4A
+  [ 32B] Found CRAM 0xF60 in TWN_EXCA.PRG at file offset 0x2120
+  [ 32B] Found CRAM 0xFA0 in TWN_EXCA.PRG at file offset 0x2160
+  [ 32B] Found CRAM 0xFE0 in TWN_EXCA.PRG at file offset 0x21A0
+  [ 32B] Found CRAM 0x060 in TWN_JIRI.PRG at file offset 0x5018
+  [ 32B] Found CRAM 0xD60 in TWN_JIRI.PRG at file offset 0x516
+  [ 32B] Found CRAM 0xF60 in TWN_JIRI.PRG at file offset 0x6EC
+  [ 32B] Found CRAM 0xFA0 in TWN_JIRI.PRG at file offset 0x72C
+  [ 32B] Found CRAM 0xFE0 in TWN_JIRI.PRG at file offset 0x76C
+  [512B] Found CRAM 0x000 in TWN_RUIN.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in TWN_RUIN.PRG at file offset 0x478
+  [512B] Found CRAM 0x400 in TWN_RUIN.PRG at file offset 0x678
+  [512B] Found CRAM 0x600 in TWN_RUIN.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in TWN_RUIN.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in TWN_RUIN.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in TWN_RUIN.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in TWN_RUIN.PRG at file offset 0x1078
+  [ 32B] Found CRAM 0x060 in TWN_SEEK.PRG at file offset 0x1F0A4
+  [ 32B] Found CRAM 0x900 in TWN_SEEK.PRG at file offset 0x19C48
+  [ 32B] Found CRAM 0x920 in TWN_SEEK.PRG at file offset 0x19C68
+  [ 32B] Found CRAM 0xC80 in TWN_SEEK.PRG at file offset 0x1987C
+  [ 32B] Found CRAM 0xD60 in TWN_SEEK.PRG at file offset 0x1996A
+  [ 32B] Found CRAM 0xEA0 in TWN_SEEK.PRG at file offset 0x1A318
+  [ 32B] Found CRAM 0xEC0 in TWN_SEEK.PRG at file offset 0x1A338
+  [ 32B] Found CRAM 0xF60 in TWN_SEEK.PRG at file offset 0x19B4A
+  [ 32B] Found CRAM 0xFA0 in TWN_SEEK.PRG at file offset 0x19B8A
+  [ 32B] Found CRAM 0xFE0 in TWN_SEEK.PRG at file offset 0x19BCA
+  [ 32B] Found CRAM 0x060 in TWN_ZOAH.PRG at file offset 0x47354
+  [ 32B] Found CRAM 0xD60 in TWN_ZOAH.PRG at file offset 0x427FA
+  [ 32B] Found CRAM 0xF60 in TWN_ZOAH.PRG at file offset 0x429D0
+  [ 32B] Found CRAM 0xFA0 in TWN_ZOAH.PRG at file offset 0x42A10
+  [ 32B] Found CRAM 0xFE0 in TWN_ZOAH.PRG at file offset 0x42A50
+  [ 32B] Found CRAM 0x940 in WORLD.PRG at file offset 0x2638
+  [ 32B] Found CRAM 0xF60 in WORLD.PRG at file offset 0x310E
+
+--- Analyzing title.savestate.cram.bin ---
+  [512B] Found CRAM 0x600 in MOVIE.PRG at file offset 0x878
+  [512B] Found CRAM 0x800 in MOVIE.PRG at file offset 0xA78
+  [512B] Found CRAM 0xA00 in MOVIE.PRG at file offset 0xC78
+  [512B] Found CRAM 0xC00 in MOVIE.PRG at file offset 0xE78
+  [512B] Found CRAM 0xE00 in MOVIE.PRG at file offset 0x1078
+  [512B] Found CRAM 0x000 in TITLE.PRG at file offset 0x278
+  [512B] Found CRAM 0x200 in TITLE.PRG at file offset 0x478
+

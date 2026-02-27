@@ -514,9 +514,45 @@ Each 32-byte layer block:
 +0x0A–0x1F   ADSR, volume, LFO, panning (runtime playback data)
 ```
 
-**Critical:** `tone_off` is a direct file-absolute byte offset into the BIN file. No SCSP RAM base address adjustment needed. Sample rate is not encoded; default 22050 Hz.
+**Critical:** `tone_off` is a direct file-absolute byte offset into the BIN file. No SCSP RAM base address adjustment needed.
 
-Tools: `tools/seq_extract.py` (disc extraction + cataloguing), `tools/seq_to_midi.py` (SEQ→MIDI), `tools/ton_to_wav.py` (TON→WAV samples).
+**Sample rate** is encoded per-layer via OCT/FNS registers (MAME scsp.cpp formula):
+```python
+oct_signed = (oct_raw ^ 8) - 8       # 4-bit unsigned XOR 8 → signed −8..+7
+sample_rate = int(44100 * (2 ** oct_signed) * (1 + fns / 1024))
+sample_rate = max(1000, min(sample_rate, 96000))   # clamp for extremes
+```
+
+**Layer key range** (first two bytes of each 32-byte layer block):
+```
++0x00  u8   lo_key   MIDI note lower bound (0 if full range)
++0x01  u8   hi_key   MIDI note upper bound (127 if full range)
+```
+
+**MIDI voice mapping:** MIDI program N → TON voice N. Each voice's layers define key-split zones. Voice index = program change value in SEQ data. This is 1:1 — 10 voices = 10 programs 0–9.
+
+**SEQ multi-song file layout (CRITICAL — fixed bug here):**
+```
+[0:2]   u16  num_songs
+[2:6]   u32  song_pointer[0]   ← ABSOLUTE byte offset to song[0]'s header
+[6:10]  u32  song_pointer[1]   (if num_songs > 1)
+...
+```
+Each song header at the pointed offset:
+```
++0x00  u16  resolution        (MIDI ticks/beat — e.g. 48, 384, 480)
++0x02  u16  num_tempo_events
++0x04  u16  data_offset       (relative to song header start)
++0x06  u16  tempo_loop_offset
+[num_tempo_events × 8 bytes: u32 tick + u32 microseconds_per_beat]
+[sequence data at song_start + data_offset]
+```
+
+**CRITICAL BUG FIXED:** Old code read song pointers as 3-byte (`b'\x00' + data[2:5]`), giving ptr=0 for all files, making `resolution = num_songs` (1, 2, 3...) instead of the actual value (48, 480, 384). With resolution=1, all notes played in near-zero time. Fix: read as full 4-byte `struct.unpack('>I', data[2:6])[0]`.
+
+Confirmed resolutions: TITLE.SEQ = 48, A3BGM = 48, CAMPBGM = 480, A3BOSS = 384, TOWNBGM = 48.
+
+Tools: `tools/seq_extract.py` (disc extraction + cataloguing), `tools/seq_to_midi.py` (SEQ→MIDI), `tools/ton_to_wav.py` (TON→WAV samples), `tools/make_sf2.py` (BIN+WAVs→SF2 SoundFont).
 
 ### SCB — Screen/Background Block
 
@@ -550,6 +586,13 @@ VDP2 Color RAM data. Needed for bank-mode textures (modes 0 and 4). Not yet pars
 
 ### Not Yet Implemented
 - ~~SND bundle splitter~~ — **INVESTIGATED AND RESOLVED**: EPISODE1-4 and INTER SND files do NOT exist on any disc. The only .SND file is AREAMAP.SND (276 bytes, a runtime sound driver area-music command stream). All music is in standalone SEQ+BIN pairs, fully catalogued by snd_split.py.
+- SEQ/BIN catalogue & extractor (`tools/snd_split.py`) — resolves all 86 SEQ→BIN pairs across all 4 discs (including 5 shared-bank cases), parses AREAMAP.SND, invokes ton_to_wav + seq_to_midi for batch conversion
+- Sound catalogue builder (`tools/build_sound_catalogue.py`) — parses SNDTEST.PRG for 75 official track names; maps 57 to SEQ files on Disc 1; exposes 29 extra (SFX/battle) tracks for identification; outputs output/sound_catalogue.json
+- SF2 SoundFont builder (`tools/make_sf2.py`) — converts BIN tone banks + extracted WAVs into standard SF2 2.01 files; no external libraries required; maps voice N → MIDI program N with correct key-split zones and per-sample OCT/FNS pitch rates; batch-converts all 84 disc1 banks to `output/sf2/` (16.2 MB total)
+- Sound test browser engine (`tools/sound_test_server.py` + `tools/sound_test.html`) — Python HTTP server (stdlib only, port 8765); custom Tone.js MIDI player using Saturn WAV samples as instruments (correct timbres, no GM soundfont); in-browser MIDI binary parser; Web Audio API waveform/spectrum visualiser; volume slider; pitch shift for WAV preview; progress bar with elapsed/total time; search/filter; confidence badges
+
+### Not Yet Implemented
+- ~~SND bundle splitter~~ — **INVESTIGATED AND RESOLVED**: EPISODE1–4 and INTER SND files do NOT exist on any disc. The only .SND file is AREAMAP.SND (276 bytes, a runtime sound driver area-music command stream). All music is in standalone SEQ+BIN pairs, fully catalogued by snd_split.py.
 - PNB parser → bank-mode texture colours (modes 0, 4 currently greyscale)
 - SCB parser (2D background tiles)
 - PCM audio extraction (`tools/pcm_extract.py`) — 270 voice/SFX files, format TBD

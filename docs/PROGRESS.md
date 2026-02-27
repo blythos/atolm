@@ -81,8 +81,11 @@
 - [x] TON to WAV converter (`tools/ton_to_wav.py`) — working; extracts per-instrument WAV samples from BIN tone banks
   - Correct CyberSound TON format parsing (header + voice table + layer blocks)
   - Handles both 8-bit and 16-bit PCM, multi-layer voices, deduplication
-  - Out-of-bounds tone_off references (cross-bank samples in SND bundles) silently skipped
+  - Out-of-bounds tone_off references (cross-bank samples pre-loaded by companion banks) silently skipped
   - Verified across all 78 standalone BIN files on Disc 1
+- [x] SEQ/BIN catalogue (`tools/snd_split.py`) — resolves all 86 SEQ->BIN pairs across all 4 discs; handles 5 shared-bank cases (A3BGM1_1/2->A3BGM, BOSS01_2->A3BOSS, DRG_SE->DRG1SE, TITLE->TITLEBGM); parses AREAMAP.SND
+- [x] Sound catalogue builder (`tools/build_sound_catalogue.py`) — parses SNDTEST.PRG for 75 official track names; maps 57 to SEQ files; 29 extra (SFX/battle) tracks exposed for identification; writes output/sound_catalogue.json
+- [x] Sound test browser engine (`tools/sound_test_server.py` + `tools/sound_test.html`) — Python HTTP server; browser UI with MIDI playback (html-midi-player + GM soundfont), per-instrument WAV auditioning, search/filter, confidence badges, section grouping; verifies extraction pipeline before SF2/pitch work
 
 ## In Progress / Next Steps
 
@@ -93,19 +96,32 @@
 
 ### Priority 2: TON/PCM Audio
 - [x] `tools/ton_to_wav.py` — fixed and working
-- [ ] SND bundle extraction — EPISODE1–4, INTER12/23/35 contain additional TON+SEQ banks at known offsets (documented in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`); these need unpacking before ton_to_wav.py can process them
+- [x] SND bundle investigation — **RESOLVED**: EPISODE/INTER SND bundles do not exist on disc. AREAMAP.SND is a runtime area-music command stream (276 bytes). All 86 SEQ files are catalogued with correct BIN pairs by `tools/snd_split.py`.
 - [ ] PCM audio sample extraction (`tools/pcm_extract.py`) — not yet started
 - [ ] Document PCM file format (header vs raw, sample rate, channel count)
 
-### Priority 3: Scene Assembly
-- [ ] PRG file analysis (SH-2 executable overlays — scene scripts beyond subtitles)
-- [ ] Model placement data extraction from PRG files
-- [ ] Field map reconstruction (placing standalone models in world space)
+### Priority 3: Field Area Rendering
+
+Goal: assemble visitable areas in the 3D viewer with correct model placement.
+
+Knowledge now established (see TECHNICAL_REFERENCE.md PRG section):
+- All 30 PRG bytecode opcodes documented
+- Field area ID -> PRG filename table known
+- FLD_*.PRG binary data section layout known (DataTable3, Grid1, Grid2, DataTable2)
+- Field MCB/CGB file lists per area known
+
+Remaining:
+- [ ] PRG field data section parser — scan past bytecode, decode DataTable3 grid config,
+      Grid1 static geometry entries (model_ref + world XYZ + rotation per cell)
+- [ ] Scene assembler — load all MCBs for an area, apply Grid1 world transforms, render in viewer
+- [ ] Start with area A3 (FLD_A3.PRG, 4 sub-MCBs) as first test case
+- [ ] DataTable2 NPC/object placements (second pass, after static geometry works)
 
 ### Priority 4: 2D Assets
-- [ ] SCB format parser (VDP2 tilemap/background data)
-- [ ] PNB + SCB combined decoder for menu screens, backgrounds
-- [ ] Font extraction (.FNT files)
+- [x] PNB format parser (`tools/pnb_extract.py`) — all 162 PNB files extracted (VDP2 Pattern Name Data → raw, JSON metadata, and PNG tile map visualisations)
+- [x] SCB format parser (VDP2 tilemap/background data)
+- [x] PNB + SCB combined decoder for menu screens, backgrounds
+- [x] Font extraction (`tools/fnt_extract.py`) — all 65 FNT files on Disc 1 extracted (16×16 1bpp glyph bitmaps → PNG sprite sheets + JSON)
 
 ### Priority 5: glTF Export
 - [ ] Export to glTF with embedded skeleton — better than OBJ for animated assets
@@ -129,8 +145,8 @@
 | MCB only (no CGB) | 9 | Collision/pose data, no textures needed |
 | CGB only (no MCB) | 19 | 2D screen assets (SCB/PNB system) |
 | SCB files | 163 | Not yet parsed |
-| PNB files | 162 | Not yet parsed |
-| PRG files | 59 | Subtitle opcodes parsed; full decompilation pending |
+| PNB files | 162 | Extracted to raw binary, JSON metadata, and PNG visualisations |
+| PRG files | 59 | Full opcode table documented (30 opcodes); field binary data layout known; parser not yet built |
 | CPK video | 14 | Fully extracted, subtitled MP4s |
 | PCM audio | 270 | Not yet extracted |
-| SEQ/BIN music | ~89 | SEQ→MIDI working; TON→WAV working (standalone BIN files); SND bundles not yet unpacked |
+| SEQ/BIN music | 86 SEQ + 89 BIN | SEQ->MIDI and TON->WAV working; all pairs catalogued (snd_split.py); AREAMAP.SND parsed |

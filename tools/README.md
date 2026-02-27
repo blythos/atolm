@@ -202,9 +202,75 @@ Each extracted WAV file contains one unique instrument sample from the bank. Fil
 
 These require manual splitting at documented byte offsets before the TON and SEQ banks inside them can be processed. Offsets for the USA Disc 1 builds are in `docs/antigravity-tasks/TASK_SEQ_EXTRACTOR.md`.
 
+## Font Extraction
+
+PDS uses VDP2 bitmap fonts stored in `.FNT` files — 16×16 1bpp glyph bitmaps. **All FNT glyphs are Japanese kanji/kana** — no Latin/Roman characters exist in this format. English text visible in FMV cutscenes is rendered via a separate system (likely VDP1 sprites or baked into CPK video frames).
+
+```bash
+# List all FNT files on disc
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --scan
+
+# Extract all fonts + built-in kernel font from COMMON.DAT
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --kernel --output output/fonts/
+
+# Extract a specific font
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --name MENU.FNT --output output/fonts/
+
+# Also export individual glyph PNGs
+python tools/fnt_extract.py --iso "path/to/disc1.bin" --all --individual --output output/fonts/
+
+# From a pre-extracted raw file
+python tools/fnt_extract.py --input raw/MENU.FNT --output output/fonts/
+```
+
+**Output per font:**
+- `{NAME}_font.png` — sprite sheet (16 columns, white-on-transparent)
+- `{NAME}_font.json` — metadata (glyph count, font type, grid dimensions)
+- Optional: `{NAME}/glyph_NNN.png` — individual glyphs (with `--individual`)
+
+**FNT categories on Disc 1 (65 files):**
+
+| Prefix | Count | Content |
+|--------|-------|---------|
+| FLD_*  | 13    | Field area UI (NPC/location names) |
+| BTL_*  | 26    | Battle encounter text |
+| EVT*   | 18    | Event/cutscene/town dialogue |
+| System | 4     | MENU, ITEM, SAVE, SHOP |
+| Other  | 4     | MENUEN, MENUBK, WORLDMAP, FLAGEDIT |
+
+## 2D Background Tile Maps (PNB / SCB / PRG)
+
+PDS uses `.PNB` files to encode VDP2 Pattern Name Data — a tile map of background elements. Its corresponding `.SCB` file stores the raw character geometry (the 4bpp or 8bpp pixel graphics).
+
+To render these maps in accurate colour, the script actively scans the disc for the map's parent executable (`.PRG` overlay) and automatically extracts its 4096-byte VDP2 Colour RAM payload from offset `0x278`.
+
+```bash
+# Extract all 162 maps, auto-assemble their SCB graphics, and apply their PRG palettes
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --extract-all --output output/tilemaps/
+
+# Extract a specific screen (e.g. TITLEE.PNB, ZOAH.PNB)
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --name ZOAH.PNB --output output/tilemaps/
+
+# List all PNB files and their graphics formats
+python tools/pnb_extract.py --iso "path/to/disc1.bin" --list
+```
+
+**Output Per Map:**
+- `{NAME}.bin` — Raw binary array of u16 big-endian VDP2 pattern name entries.
+- `{NAME}.json` — Extracted metadata including unique tiles, bits-per-pixel mode, and statistics.
+- `{NAME}_assembled.png` — A full-color representation of the map, constructed by combining the PNB layout, SCB graphics, and PRG 15-bit RGB555 palettes. (If SCB/PRG are missing, it falls back to `{NAME}_tilemap_vis.png`).
+
+### Verification
+
+You can cryptographically verify that the auto-extracted PRG palettes match real Sega Saturn hardware using emulator save states:
+
+```bash
+# Prove 100% accuracy of extracted PRG palettes against Ymir emulator memory dumps
+python tools/verify_palettes_vs_emulator.py --iso "path/to/disc1.bin" --savestates ISOs/save_states/
+```
+
 ## Known Limitations
 
-- **Bank-mode textures** (colour modes 0 and 4) render as greyscale. These need VDP2 Color RAM data from PNB files, which requires parsing scene-specific PRG bytecode.
 - **Field geometry** (FLD_* files) contains many standalone models placed by PRG scripts. They extract as unassembled parts at origin.
 - **Gouraud shading** data (per-vertex normals and colours from lighting modes 1-3) is extracted but not yet fully rendered — the Saturn's Gouraud system modulates texture colours in ways that need further research.
 
