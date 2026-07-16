@@ -1,0 +1,36 @@
+# Disc images — user-supplied, never committed (legal rules, CLAUDE.md)
+# (directory is also write-protected in .claude/settings.json: read-only input)
+/ISOs/
+
+# Extracted PRGs / segments — Sega-derived bytes, never committed
+/extracted/*
+!/extracted/README.md
+
+# All build output
+/build/
+
+# Vendored proprietary toolchain binaries (fetched by `make setup`)
+/toolchain/vendor/
+
+# Local scratch
+__pycache__/
+*.pyc
+
+# Belt-and-braces: binary artifact types must never be committed anywhere.
+# The CI tripwire enforces this independently of .gitignore.
+*.bin
+*.prg
+*.PRG
+*.obj
+*.elf
+*.o
+*.iso
+*.cue
+*.exe
+*.EXE
+*.zip
+*.7z
+*.rar
+
+# Windows metadata
+*Zone.Identifier

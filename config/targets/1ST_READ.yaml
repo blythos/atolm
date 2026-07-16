@@ -1,0 +1,24 @@
+# 1ST_READ.PRG — proofs-only target (Bucket 1 non-goal: no full rebuild).
+# Carries the Bucket 0 matched-function proofs. Format: config/README.md.
+target: 1ST_READ.PRG
+role: proofs-only
+disc: 1
+disc_path: 1ST_READ.PRG
+size: 253650
+sha256: 2bb6c2d66ec17fe3e2333009f82cd0df29a5e7ac6c407d84077edeec070671c6
+vma_base: 0x06006000   # IP.BIN header field at offset 0xE8 (disc-authoritative)
+
+functions:
+  - name: func_06006622
+    vma: 0x06006622
+    size: 18
+    status: matched
+    source: src/1ST_READ/func_06006622.c
+    compiler: shc-5.0-r31
+    flags: [-optimize=1, -speed]
+    sha256: 66e77b5a2c5d36fbde1ec410c1b33a2dbb6d30c38eb176e3202df0034bdfc3d5
+    matched: 2026-07-15
+    notes: >-
+      Bucket 0 criterion-3 proof. Pure register-arithmetic leaf (no memory
+      access, no calls, no literal pool); matched on first attempt with the
+      canonical flag pair.

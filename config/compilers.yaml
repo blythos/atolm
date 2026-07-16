@@ -1,0 +1,48 @@
+# Canonical compiler definitions. Every matched-function record in
+# config/targets/*.yaml references one of these ids; together with the
+# per-function `flags` list this fully reproduces the invocation.
+#
+# Verdict provenance: Bucket 0/0.5/0.6 (docs/ATTRIBUTION_AND_FINDINGS.md).
+
+shc-5.0-r31:
+  description: >-
+    Hitachi SH SERIES C/C++ Compiler Ver. 5.0 (Release31), (C) 1992,1998
+    Hitachi Ltd. Win32 PE, run under Wine. Canonical compiler for the
+    dominant (descending-prologue) code population.
+  caveat: >-
+    Release31 is a Nov-1998 Dreamcast-devkit build, likely newer than PDS's
+    true compiler (2.x-4.x, no surviving binary). Some functions need C
+    reshaped to match; two recurring idiom gaps (addressing-mode choice,
+    constant materialization) are bounded per-function work, not grounds to
+    relax the match standard.
+  image: atolm-shc
+  runner: toolchain/shc/run.sh
+  provenance:
+    archive_url: https://archive.org/download/sega-saturn-sdks/Sega%20Saturn%20SDKs.zip
+    archive_sha256: 6631054c29e47e1565a6555b3d448a066cf64ea9c53835771e12d01f167e4353
+    archive_subdir: SDKs/Official/Hitachi
+    shc_exe_sha256: 7113feff1bd1f34915a52553848d9df545d1792d1972977d56a2a8536a2d94ab
+  env:
+    SHCPU: SH2
+    SHC_LIB: 'Z:\opt\shc\'   # trailing backslash load-bearing (error 3321)
+    SHC_INC: 'Z:\opt\shc\'
+    SHC_TMP: 'Z:\tmp\'
+  invocation:
+    - 'wine /opt/shc/shc.exe {src} -object={prefix}.obj {flags}'
+    - 'wine /opt/shc/elfcnv.exe {prefix}.obj {prefix}.elf'
+    - 'sh-elf-objcopy -O binary --only-section=.text {prefix}.elf {prefix}.bin'
+
+cygnus-2.7-96Q3:
+  description: >-
+    Cygnus GNU C 2.7-96Q3 (SOA-960904), DOS-hosted (DJGPP/go32), run under
+    dosemu2. Secondary toolchain for the suspected GCC-family middleware
+    pocket (ascending-prologue population) only.
+  image: atolm-cygnus
+  runner: toolchain/cygnus/run_dosemu.sh
+  provenance:
+    tarball_url: https://github.com/Xeeynamo/sotn-decomp/releases/download/cc1-psx-26/cygnus-2.7-96Q3-bin.tar.gz
+    tarball_sha256: 04ea5aad6daac640c445e571453e7477896e2e3e1e4219787d268233fc9f4960
+  invocation:
+    - 'CC1.EXE {flags} -m2 -fsigned-char {src} -o {prefix}.s (via dosemu BUILD.BAT)'
+    - 'sh-elf-as -small -o {prefix}.o {prefix}.s'
+    - 'sh-elf-objcopy -O binary --only-section=.text {prefix}.o {prefix}.bin'

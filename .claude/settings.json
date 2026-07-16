@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(ISOs/**)",
+      "Write(ISOs/**)",
+      "Bash(git push:*)"
+    ]
+  }
+}
