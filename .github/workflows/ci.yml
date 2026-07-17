@@ -1,0 +1,44 @@
+# CI (Bucket 1, step 5): toolchain builds, committed C compiles,
+# per-unit hash proofs verified, tripwire.
+# No disc content ever enters CI: per-unit verification needs only the
+# committed C + manifest hashes (hash equality IS the proof). Full-PRG
+# verification (make check) is local-only, by design.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tripwire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tripwire (no binary / Sega-derived content committed)
+        run: tools/tripwire.sh
+
+  verify:
+    runs-on: ubuntu-latest
+    needs: tripwire
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SHC toolchain archive
+        uses: actions/cache@v4
+        with:
+          path: toolchain/vendor/cache
+          key: shc-archive-6631054c
+
+      - name: Build toolchain images
+        run: |
+          docker build -t atolm-shc toolchain/shc/
+          docker build -t atolm-cygnus toolchain/cygnus/
+
+      - name: Fetch SHC toolchain (sha256-pinned)
+        run: toolchain/fetch-shc.sh
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Verify matched-unit hash proofs + compile attempted units
+        run: python3 tools/check_units.py --compile-attempted

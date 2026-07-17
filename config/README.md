@@ -25,7 +25,8 @@ Top-level keys:
 | `sha256`   | hash of the extracted file — `make extract` refuses a mismatch |
 | `vma_base` | load address (from IP.BIN or overlay header — disc-authoritative) |
 | `segments` | ordered segment map covering the whole file (`build` role only)|
-| `functions`| per-function match records (the hash manifest)                 |
+| `units`    | compilation-unit records — the buildable/provable entities     |
+| `functions`| per-function progress records within units                     |
 
 ### `segments` (splitter config, `build` role only)
 
@@ -40,33 +41,45 @@ segments:
   - {start: 0x200, end: 0x300, type: code_unmatched} # spliced from extracted/
 ```
 
-- `code` — covered by matched functions; bytes come from the compiler and
-  are hash-verified against the function records.
+- `code` — covered by a compilation unit (`unit:` key); bytes come from the
+  compiler and are hash-verified against the unit record.
 - `data` / `code_unmatched` — placeholder mechanism: bytes are copied at
   build time from the locally-extracted original (never committed). A
   `code_unmatched` segment is work remaining; `data` stays spliced forever
   (data lives on the disc).
 
-### `functions` (hash manifest)
+### `units` (the hash manifest — byte-proof entities)
 
-One record per function we have attempted. Fields:
+Compilers emit literal pools that can be shared across functions in one
+translation unit (seen in SEGALOGO.PRG: one merged pool serves both
+functions), so the smallest independently provable byte span is the unit's
+whole `.text`, not a single function. One record per compilation unit:
 
 ```yaml
-- name: func_06006622        # placeholder naming: func_<vma>
-  vma: 0x06006622            # address in the loaded binary
-  size: 18                   # byte length of the original function
-  status: matched            # matched | attempted
-  source: src/1ST_READ/func_06006622.c
-  compiler: shc-5.0-r31      # key into compilers.yaml
-  flags: [-optimize=1, -speed]
-  sha256: 66e77b5a...        # hash of the original function's bytes
-  matched: 2026-07-15
-  notes: optional free text
+units:
+  segalogo:
+    source: src/SEGALOGO/SEGALOGO.c
+    size: 0x148              # .text byte length incl. literal pools
+    status: todo             # todo | attempted | matched
+    compiler: shc-5.0-r31    # key into compilers.yaml
+    flags: [-optimize=1, -speed]
+    sha256: b7e93583...      # hash of the original bytes this unit must hit
+    matched: 2026-07-16      # date, once status: matched
 ```
 
 The match proof is: compiling `source` with `compiler` + `flags` and
 extracting `.text` yields `size` bytes whose sha256 equals `sha256`. CI
 re-verifies this for every `matched` record **without any disc content** —
-the hash equality itself is the proof. `attempted` records document honest
-non-matches per the failure protocol; their residual-diff analysis lives in
-docs/FINDINGS/, described in prose, never as byte dumps.
+the hash equality itself is the proof. A single-function unit (like the
+1ST_READ proofs, which use per-function records with the same fields) is
+just the degenerate case.
+
+`attempted` documents an honest non-match per the failure protocol; the
+residual-diff analysis lives in docs/FINDINGS/, described in prose, never
+as byte dumps. `todo` means not yet attempted.
+
+### `functions` (progress records)
+
+One record per function, for progress accounting and documentation:
+`name` (placeholder naming: `func_<vma>`), `vma`, `size`, `unit` (key into
+`units`), `status`, optional `notes` describing observed behavior in prose.

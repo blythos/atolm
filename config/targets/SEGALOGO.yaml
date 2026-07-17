@@ -1,0 +1,69 @@
+# SEGALOGO.PRG — Bucket 1's first complete-rebuild target (smallest overlay).
+#
+# Segmentation (Bucket 1 step 2, 2026-07-16), from local disassembly:
+# exactly two functions (prologues at +0x00 and +0x3a, one rts), sharing a
+# single merged literal pool at [0xd8,0x148) — word and long constants from
+# both functions interleaved after the second function's body. They were
+# compiled as one translation unit; the unit's whole .text is the smallest
+# independently provable byte span, hence the `units` record owning the
+# byte proof and `functions` tracking progress within it.
+#
+# vma_base evidence: pool addresses 0x6054148/0x6054dd0/0x6054dfc/0x6054e04
+# are self-references (0x6054e04 + the 32-byte VDP2-CRAM upload ends exactly
+# at file end 0x6054e24); base must lie in (0x6053fe0, 0x6054148] and the
+# aligned value consistent with all references is 0x06054000.
+target: SEGALOGO.PRG
+role: build
+disc: 1
+disc_path: SEGALOGO.PRG
+size: 3620
+sha256: beb682eee488c6160408c025d1352ed970b8392493bc2a82253a78e1e8da4b4a
+vma_base: 0x06054000
+
+segments:
+  - start: 0x000
+    end: 0x148
+    type: code
+    unit: segalogo
+  - start: 0x148
+    end: 0xe24
+    type: data
+    # sub-regions (documentation only; spliced as one segment):
+    #   0x148-0xdcf  graphics, uploaded to VDP2 VRAM 0x25e20000 (+0xdfc block
+    #                to 0x25e24000)
+    #   0xdd0-0xdfb  parameter table passed to 0x60326dc
+    #   0xdfc-0xe03  second VRAM-upload descriptor
+    #   0xe04-0xe23  32-byte palette, uploaded to VDP2 CRAM area 0x25f00800
+
+units:
+  segalogo:
+    source: src/SEGALOGO/SEGALOGO.c
+    size: 0x148            # .text bytes incl. shared literal pool
+    status: attempted      # 317/328 bytes; residual analysis in
+                           # docs/FINDINGS/SEGALOGO_segalogo.md
+    compiler: shc-5.0-r31
+    flags: [-optimize=1, -speed]
+    sha256: b7e935830ae524b183f3046ad11b79b8ac6388682906e43ba4b8a30d6b820a1f
+
+functions:
+  - name: func_06054000
+    vma: 0x06054000
+    size: 0x3a
+    unit: segalogo
+    status: attempted      # bytes [0x00,0x28) exact; epilogue-schedule residual
+    notes: >-
+      Overlay entry. Saves r14+pr, calls func_0605403a, reads two byte
+      fields (+76,+77) of a global struct at 0x604b484, conditionally
+      clears two word fields of 0x604b244, calls 0x6034c20 on the struct,
+      then tail-jumps (jmp) to 0x6034aaa with args from the struct.
+  - name: func_0605403a
+    vma: 0x0605403a
+    size: 0x9e
+    unit: segalogo
+    status: attempted      # exact except one peephole choice (offset 0xaa)
+    notes: >-
+      Init/upload routine: calls 0x6032292, then a sequence of 1ST_READ
+      library calls uploading this overlay's own data to VDP1/VDP2 (VRAM
+      0x25e20000/0x25e24000, CRAM 0x25f00800), sets fields of a struct at
+      +0x604b224 area, polls VDP2 TVSTAT (0x25f80004), conditionally calls
+      0x60289cc, writes state byte at 0x605036c.
