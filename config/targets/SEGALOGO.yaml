@@ -23,11 +23,11 @@ vma_base: 0x06054000
 segments:
   - start: 0x000
     end: 0x148
-    type: code
+    state: attempted       # must agree with units.segalogo.status (enforced)
     unit: segalogo
   - start: 0x148
     end: 0xe24
-    type: data
+    state: data
     # sub-regions (documentation only; spliced as one segment):
     #   0x148-0xdcf  graphics, uploaded to VDP2 VRAM 0x25e20000 (+0xdfc block
     #                to 0x25e24000)
@@ -39,8 +39,8 @@ units:
   segalogo:
     source: src/SEGALOGO/SEGALOGO.c
     size: 0x148            # .text bytes incl. shared literal pool
-    status: attempted      # 317/328 bytes; residual analysis in
-                           # docs/FINDINGS/SEGALOGO_segalogo.md
+    status: attempted      # best candidate 317/328 bytes, drift-class
+    findings: docs/FINDINGS/SEGALOGO_segalogo.md
     compiler: shc-5.0-r31
     flags: [-optimize=1, -speed]
     sha256: b7e935830ae524b183f3046ad11b79b8ac6388682906e43ba4b8a30d6b820a1f

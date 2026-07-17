@@ -24,29 +24,55 @@ Top-level keys:
 | `size`     | expected byte size of the extracted file                       |
 | `sha256`   | hash of the extracted file — `make extract` refuses a mismatch |
 | `vma_base` | load address (from IP.BIN or overlay header — disc-authoritative) |
-| `segments` | ordered segment map covering the whole file (`build` role only)|
+| `segments` | ordered five-state segment map covering the whole file        |
 | `units`    | compilation-unit records — the buildable/provable entities     |
 | `functions`| per-function progress records within units                     |
 
-### `segments` (splitter config, `build` role only)
+### `segments` (the segment map)
 
 Ordered, non-overlapping, and must cover `[0, size)` exactly — the build
 concatenates them and `make check` compares the result to the extracted
-original. Each entry:
+original. For `role: build` targets the map drives the build; for
+analysis-mapped targets (1ST_READ) it is the committed segmentation record.
+Every segment carries a `state`, one of exactly five values
+(Bucket 2 vocabulary):
+
+| state | meaning | build source |
+|---|---|---|
+| `matched` | unit recompiles byte-identical, sha256-proven | compiler output, hash-verified |
+| `attempted` | honest non-match, drift-class residual, **analysis on file** in docs/FINDINGS/ | original bytes (spliced) |
+| `unattempted` | code no one has tried to match yet | original bytes (spliced) |
+| `library-candidate` | code suspected SGL/SBL/CPK library (heuristic — Bucket 3 confirms or demotes) | original bytes (spliced) |
+| `data` | not code; lives on the disc forever | original bytes (spliced) |
 
 ```yaml
 segments:
-  - {start: 0x0,   end: 0x120, type: code}          # compiled from src/
-  - {start: 0x120, end: 0x200, type: data}          # spliced from extracted/
-  - {start: 0x200, end: 0x300, type: code_unmatched} # spliced from extracted/
+  - {start: 0x0,   end: 0x120, state: matched, unit: foo}
+  - {start: 0x120, end: 0x200, state: data}
+  - {start: 0x200, end: 0x300, state: unattempted}
+  - {start: 0x300, end: 0x400, state: library-candidate}  # + evidence: prose
 ```
 
-- `code` — covered by a compilation unit (`unit:` key); bytes come from the
-  compiler and are hash-verified against the unit record.
-- `data` / `code_unmatched` — placeholder mechanism: bytes are copied at
-  build time from the locally-extracted original (never committed). A
-  `code_unmatched` segment is work remaining; `data` stays spliced forever
-  (data lives on the disc).
+Consistency rules, machine-enforced by every tool (`validate_manifest` in
+`tools/prg.py`):
+
+- `matched` / `attempted` segments must name a `unit:` whose `status`
+  **agrees with the segment state** — disagreement fails the build/check,
+  so the two can never drift apart silently.
+- An `attempted` unit must carry a `findings:` path that exists —
+  "attempted" without a residual-diff analysis on file is not a state
+  this schema can express.
+- `library-candidate` segments should carry an `evidence:` note (prose:
+  version-string proximity, call-graph position, idiom style). Certainty
+  is not required; confirmation or demotion is Bucket 3 work.
+
+Only `matched` segments ever receive compiler output. Everything else is
+the placeholder mechanism: bytes copied at build time from the
+locally-extracted original, never committed.
+
+**Reporting rule:** every progress line any tool prints, and every README
+stats block, shows the full five-state split. The matched figure is never
+presented alone.
 
 ### `units` (the hash manifest — byte-proof entities)
 
@@ -60,7 +86,8 @@ units:
   segalogo:
     source: src/SEGALOGO/SEGALOGO.c
     size: 0x148              # .text byte length incl. literal pools
-    status: todo             # todo | attempted | matched
+    status: attempted        # unattempted | attempted | matched
+    findings: docs/FINDINGS/SEGALOGO_segalogo.md  # required when attempted
     compiler: shc-5.0-r31    # key into compilers.yaml
     flags: [-optimize=1, -speed]
     sha256: b7e93583...      # hash of the original bytes this unit must hit
@@ -75,11 +102,13 @@ the hash equality itself is the proof. A single-function unit (like the
 just the degenerate case.
 
 `attempted` documents an honest non-match per the failure protocol; the
-residual-diff analysis lives in docs/FINDINGS/, described in prose, never
-as byte dumps. `todo` means not yet attempted.
+residual-diff analysis lives at the `findings:` path (docs/FINDINGS/,
+prose only, never byte dumps) and the field is mandatory — validation
+fails without it. `unattempted` means not yet attempted.
 
 ### `functions` (progress records)
 
 One record per function, for progress accounting and documentation:
 `name` (placeholder naming: `func_<vma>`), `vma`, `size`, `unit` (key into
-`units`), `status`, optional `notes` describing observed behavior in prose.
+`units`), `status` (same vocabulary as units), optional `notes` describing
+observed behavior in prose.

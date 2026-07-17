@@ -11,7 +11,7 @@ reproducible — with zero Sega-derived bytes in the repo.
 |-----------------------|------------|--------------|
 | `make setup`          | no         | builds both Docker images (`atolm-shc`, `atolm-cygnus`); runs `toolchain/fetch-shc.sh` (downloads or reuses the pinned sega-saturn-sdks archive, sha256-verified, into gitignored `toolchain/vendor/shc/`) |
 | `make extract`        | yes        | for each `config/targets/*.yaml`: pulls `disc_path` from `ISOs/` via `tools/iso9660.py` into `extracted/`, then **refuses to proceed** unless size and sha256 match the manifest (wrong disc / bad dump caught here) |
-| `make` (all)          | yes        | for each `role: build` target: compiles every `status: matched` function in its container, hash-verifies each against its manifest record, then assembles `build/<TARGET>` from the segment map (compiled bytes for `code` segments, bytes spliced from `extracted/<TARGET>` for `data`/`code_unmatched` segments) |
+| `make` (all)          | yes        | for each `role: build` target: compiles every `status: matched` function in its container, hash-verifies each against its manifest record, then assembles `build/<TARGET>` from the segment map (compiled bytes for `matched` segments, bytes spliced from `extracted/<TARGET>` for every other state — see config/README.md for the five-state vocabulary, adopted Bucket 2) |
 | `make check`          | yes        | `cmp` + `sha256sum` of `build/<TARGET>` vs `extracted/<TARGET>`; prints per-target PASS/FAIL and per-function match stats; GREEN only on byte-identity |
 | `make check-functions`| **no**     | CI-safe subset: recompiles every `matched` function from committed C and compares the compiled `.text` sha256 to the manifest hash. Hash equality proves the match without any disc content |
 | `make tripwire`       | no         | scans the committed tree (git ls-files) and fails on any binary content: banned extensions, NUL bytes, files matching known Sega-derived hashes |
@@ -35,18 +35,19 @@ config/targets/SEGALOGO.yaml ──assemble (segment map)──▶ build/SEGALOG
 The segment map in each `build`-role manifest is ordered and covers
 `[0, size)` exactly. The assembler script (`tools/build_target.py`) walks it:
 
-- `code` segments: bytes come from compiled objects. Each function is
+- `matched` segments: bytes come from compiled objects. Each unit is
   compiled in the SHC container via its recorded invocation; the `.text`
   bytes are extracted with `sh-elf-objcopy` and sha256-checked against the
-  function record **before** splicing. A hash mismatch aborts the build —
-  a function that stops matching can never silently ship inside a "green"
+  unit record **before** splicing. A hash mismatch aborts the build —
+  a unit that stops matching can never silently ship inside a "green"
   PRG.
-- `data` / `code_unmatched` segments: bytes are copied from
-  `extracted/<TARGET>` at the same offsets, at build time, locally.
-  Nothing derived from them is ever written inside the repo tree
-  (`build/` is gitignored).
+- all other states (`attempted` / `unattempted` / `library-candidate` /
+  `data`): bytes are copied from `extracted/<TARGET>` at the same offsets,
+  at build time, locally. Nothing derived from them is ever written inside
+  the repo tree (`build/` is gitignored).
 
-Progress metric falls out of the manifest: matched bytes / total code bytes.
+Progress metric falls out of the manifest: the full five-state byte split
+(matched is never reported alone).
 
 ## Where verification happens
 

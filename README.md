@@ -56,12 +56,25 @@ make check      # byte-identity vs your extracted originals
 without needing a disc (hash equality with the manifest is the proof) —
 this is what CI runs.
 
-## Current status (Bucket 1)
+## Current status (Bucket 2)
 
-| target | rebuild | matched code |
-|---|---|---|
-| SEGALOGO.PRG (3620 bytes) | byte-identical via placeholder splice | 0/328 code bytes matched; best candidate at 317/328 (96.6%), residual documented in [docs/FINDINGS/SEGALOGO_segalogo.md](docs/FINDINGS/SEGALOGO_segalogo.md) |
-| 1ST_READ.PRG | proofs-only (no rebuild planned this bucket) | 1 function matched with sha256 proof |
+Every segment of every target is in exactly one of five states, and
+progress is always reported as the full split — never the matched figure
+alone:
+
+- **matched** — recompiles byte-identical, sha256-proven
+- **attempted** — honest non-match with the residual-diff analysis on
+  file in docs/FINDINGS/ (drift-class: same-instruction scheduling and
+  peephole differences attributed to the compiler-version gap)
+- **unattempted** — code not yet tried
+- **library-candidate** — suspected SGL/SBL/CPK library code, flagged
+  for Bucket 3 identification
+- **data** — not code; stays on the disc forever
+
+| target | rebuild | matched | attempted | unattempted | library-candidate | data |
+|---|---|---|---|---|---|---|
+| SEGALOGO.PRG (3,620 B) | byte-identical | 0 B | 328 B (best candidate 317/328, [analysis](docs/FINDINGS/SEGALOGO_segalogo.md)) | 0 B | 0 B | 3,292 B |
+| 1ST_READ.PRG (253,650 B) | proofs-only | 18 B (1 unit, sha256-proven) | — | segment map is Bucket 2 work, in progress | — | — |
 
 A unit only counts as **matched** when its recompiled bytes are
 byte-identical; "96.6% of bytes equal" is honestly reported as

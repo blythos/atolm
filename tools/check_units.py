@@ -10,13 +10,20 @@ fail the hash check.
 import os
 import sys
 
-from prg import REPO, load_manifests, compile_unit, verify_unit, sha256
+from prg import (REPO, load_manifests, compile_unit, verify_unit, sha256,
+                 validate_manifest)
 
 
 def main():
     compile_attempted = "--compile-attempted" in sys.argv[1:]
+    manifests = load_manifests()
+    invalid = [e for m in manifests for e in validate_manifest(m)]
+    if invalid:
+        for e in invalid:
+            print(f"check-functions: FAIL {e}")
+        sys.exit(1)
     total = failed = 0
-    for m in load_manifests():
+    for m in manifests:
         for name, unit in (m.get("units") or {}).items():
             if unit["status"] == "attempted" and compile_attempted:
                 workdir = os.path.join(REPO, "build/proof", m["target"], name)

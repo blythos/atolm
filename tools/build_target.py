@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """make all: assemble build/<TARGET> for every `role: build` manifest.
 
-Code segments come from compiled units — each hash-verified against its
-manifest record before splicing, so a unit that stops matching can never
-silently ship inside a "green" PRG. Unmatched/data segments are spliced
-from the locally-extracted original (placeholder mechanism).
+`matched` segments come from compiled units — each hash-verified against
+its manifest record before splicing, so a unit that stops matching can
+never silently ship inside a "green" PRG. Every other state (attempted /
+unattempted / library-candidate / data) is spliced from the
+locally-extracted original (placeholder mechanism).
 """
 import os
 import sys
 
-from prg import REPO, load_manifests, compile_unit, sha256
+from prg import (REPO, load_manifests, compile_unit, sha256,
+                 validate_manifest, format_split)
 
 
 def fail(msg):
@@ -28,44 +30,34 @@ def build_one(m):
     segments = m.get("segments") or []
     if not segments:
         fail(f"{target}: no segment map")
-    if segments[0]["start"] != 0 or segments[-1]["end"] != m["size"]:
-        fail(f"{target}: segment map must cover [0, size)")
-    for a, b in zip(segments, segments[1:]):
-        if a["end"] != b["start"]:
-            fail(f"{target}: segment map gap/overlap at {a['end']:#x}")
+    errs = validate_manifest(m)
+    if errs:
+        fail(f"{target}: invalid manifest:\n  " + "\n  ".join(errs))
 
     units = m.get("units") or {}
     out = bytearray()
-    matched_bytes = code_bytes = 0
     for seg in segments:
-        start, end, typ = seg["start"], seg["end"], seg["type"]
-        length = end - start
-        if typ == "code":
-            code_bytes += length
+        start, end, state = seg["start"], seg["end"], seg["state"]
+        if state == "matched":
             unit = units[seg["unit"]]
-            if unit["status"] == "matched":
-                workdir = os.path.join(REPO, "build/obj", target, seg["unit"])
-                data = compile_unit(seg["unit"], unit, workdir)
-                if len(data) != length or sha256(data) != unit["sha256"]:
-                    fail(f"{target}: unit {seg['unit']} no longer matches its "
-                         f"manifest proof (got {len(data)} bytes, "
-                         f"sha256 {sha256(data)[:16]}…)")
-                out += data
-                matched_bytes += length
-            else:
-                # placeholder: not yet matched, splice original bytes
-                out += orig[start:end]
-        elif typ in ("data", "code_unmatched"):
-            out += orig[start:end]
+            workdir = os.path.join(REPO, "build/obj", target, seg["unit"])
+            data = compile_unit(seg["unit"], unit, workdir)
+            if len(data) != end - start or sha256(data) != unit["sha256"]:
+                fail(f"{target}: unit {seg['unit']} no longer matches its "
+                     f"manifest proof (got {len(data)} bytes, "
+                     f"sha256 {sha256(data)[:16]}…)")
+            out += data
         else:
-            fail(f"{target}: unknown segment type {typ!r}")
+            # placeholder: everything not matched is spliced from the
+            # locally-extracted original
+            out += orig[start:end]
 
     dest = os.path.join(REPO, "build", target)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     with open(dest, "wb") as f:
         f.write(out)
-    print(f"build: {target}: wrote build/{target} "
-          f"({len(out)} bytes; matched code {matched_bytes}/{code_bytes} bytes)")
+    print(f"build: {target}: wrote build/{target} ({len(out)} bytes; "
+          f"{format_split(m)})")
 
 
 def main():
