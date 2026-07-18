@@ -1,10 +1,10 @@
 # atolm — Panzer Dragoon Saga Matching Decompilation
 ## Project Charter & Anti-Drift Record
 
-**Last updated:** 2026-07-17 (Bucket 1 in progress; Step 1 checkpoint passed)
+**Last updated:** 2026-07-18 (Bucket 2 closed)
 **Purpose of this document:** the canonical statement of what this project is, every binding decision made so far, and the guards against goal drift. A previous attempt at this project failed through gradual drift; this document exists so that any future conversation, agent session, or contributor can be checked against it. **If work diverges from this document, the work is wrong, not the document — unless a human explicitly amends the document.**
 
-**Canonical copy & sync rule (added 2026-07-17):** the canonical copy of this charter lives in the claude.ai project knowledge. The repo copy (`docs/PROJECT_CHARTER.md`) is a mirror, refreshed as part of every checkpoint commit. If the two ever differ, the project-knowledge copy wins and the mirror is corrected at the next checkpoint. Amendments are dated inline.
+**Canonical copy & sync rule (amended 2026-07-18):** the canonical charter is docs/PROJECT_CHARTER.md in the atolm repo; git history is the amendment ledger. The claude.ai project-knowledge copy is a mirror, refreshed by the human at bucket closes. Amendments are applied only as verbatim blocks approved at a checkpoint review — the agent never amends charter content on its own judgment. If copies differ, the repo copy wins.
 
 ---
 
@@ -72,7 +72,7 @@ Three-layer discipline used throughout:
 
 **Two-population structure:** an isolated 3-function **ascending-order pocket** at 0x06022820–0x0602297c (GCC-idiom) sits inside the otherwise-SHC binary. Hypothesis (unconfirmed): statically linked third-party middleware, candidate CRI (a "CPK Version 1.24 1996-06-14" string exists in the binary). Candidate compilers for the pocket: Cygnus 2.7-96Q3 or ccsh 2.7-97r1a. A timeboxed Bucket 0 attempt got structurally close (correct offsets, constants, loop idiom) but not byte-identical; any future attempt needs full-context linking with `-mrelax`/`-relax` (documented in the Cygnus distribution's RELAX.TXT). **Matching the pocket does NOT count toward main-population success criteria** (amended criterion, 2026-07-15 — the on-record example of refusing a technicality win).
 
-**Other structural knowledge:** PDS is heavily overlay-based (hundreds of .PRG files streamed from disc; 973 filenames in the runtime file table). Much game logic lives in a script/bytecode VM — script programs are *data* to the decomp, shrinking the true code-matching surface. Sega SGL/SBL 1996-era libraries are linked in (version strings: BUP 1.21, GFS_SBL 2.10, SYS 2.20, CPK 1.24). Period SBL 6.21/SGL 3.20 library binaries (26 .LIBs + SYS_*.OBJs, translator-tagged, sha256-catalogued in `work/0.6b/lib_catalogue.md` in ~/pdstest) are in hand as ready-made fingerprints for Bucket 3 library identification.
+**Other structural knowledge:** PDS is heavily overlay-based (hundreds of .PRG files streamed from disc; the 973-filename runtime file table observed in savestate RAM is built at runtime — it is NOT present in 1ST_READ.PRG; only small filename tables live there). Much game logic lives in a script/bytecode VM — script programs are *data* to the decomp, shrinking the true code-matching surface. Sega SGL/SBL 1996-era libraries are linked in (version strings: BUP 1.21, GFS_SBL 2.10, SYS 2.20, CPK 1.24). Period SBL 6.21/SGL 3.20 library binaries (26 .LIBs + SYS_*.OBJs, translator-tagged, sha256-catalogued in `work/0.6b/lib_catalogue.md` in ~/pdstest) are in hand as ready-made fingerprints for Bucket 3 library identification.
 
 ## 5. Instructive episodes (precedents to reason from)
 
@@ -80,6 +80,7 @@ Three-layer discipline used throughout:
 - **The ccsh scope-override:** the agent flagged Psy-Q's ccsh as "out of scope" (not a Hitachi dot-release); the human review overrode: the hypothesis was always "a different compiler whose defaults produce the observed codegen," vendor included. *Precedent: scope serves the question, not the letter.*
 - **H1 falsification accepted cleanly:** a 66-run option matrix produced zero matches and was recorded as a real negative result, per option set. *Precedent: negative results are findings, logged with the same rigor.*
 - **Model-swap incident:** a session silently reverted to a smaller model; the work held because verification is structural (hashes, re-runnable commands), not trust-based. *Precedent: the discipline, not the model, carries correctness.*
+- **The fabricated-hash incident (Bucket 2):** an agent hand-typed plausible sha256 tails into a manifest instead of computing them; the verification loop caught it, all hashes were regenerated from real bytes, and the incident was self-reported. Standing rule: proof values (hashes, sizes, addresses) are only ever tool-generated — a hand-authored proof value is treated as fabrication regardless of intent, and manifest edits must come from the generating tools.
 
 ## 6. Repositories, artifacts & legal rules
 
@@ -103,6 +104,7 @@ Three-layer discipline used throughout:
 - **Bucket 0.5 — validation set:** 4 graduated candidates; calibrated difficulty (most functions need iteration; obstacles mechanical and bounded).
 - **Bucket 0.6 — near-miss resolution:** flags falsified as cause; Release31 canonical with standing watch.
 - **Bucket 0.6b — watch-item follow-up (Exodus techdocs):** no compiler found, but version-drift **proven** by controlled recompile of disc-shipped source, and the hunt narrowed to mid/late-1997 SHC (translator tags C_SH9705xx–9708xx). Side prize: SBL 6.21/SGL 3.20 period libraries acquired, hashed, and catalogued (work/0.6b/lib_catalogue.md in pdstest) — ready-made fingerprints for Bucket 3 library identification. Remaining hunt channels: Hitachi/embedded-world archives and community outreach (personal, ongoing), not Sega-preservation channels (falsified twice).
+- **Bucket 2 — analysis infrastructure:** CLOSED (2026-07-18). 1ST_READ fully segmented (3,626 functions, evidence-tagged, 84.9% instruction-covered, 4.1% unclassified; 555 suspects triaged to Bucket 3); reproducible headless Ghidra generation (tools-local, never committed); five-state vocabulary live and machine-enforced; symbols file with provenance tags (21 entries); Azel pilot stopped at 19 names but established JP/US address identity (19/20 exact) — structural matching against yaz0r's ~700 named functions logged as a Bucket 3+ lead; Ymir savestate fixture confirmed load address 0x06006000 and a 440-byte runtime-write mask; overlay locate technique established for Bucket 4.
 
 **Active:**
 - **Bucket 1 — repo + first complete PRG target (SEGALOGO.PRG, 3620 bytes):** Step 1 (migration/skeleton/build design) checkpoint PASSED and committed; Step 2 (extract + segment) approved and in progress. Remaining: extract+segment → build system (make / make check, placeholder splicing from extracted/) → match functions → CI (hash-verify + tripwire) → README → final checkpoint (clean clone → setup → extract → build → check green, byte-identical). Non-goals: no second PRG, no 1ST_READ beyond existing proofs, no Ghidra/permuter, no assets, no progress website. **Ghidra trigger:** if SEGALOGO segmentation proves ambiguous, Ghidra moves up immediately.
