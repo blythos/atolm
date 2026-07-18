@@ -80,3 +80,7 @@ Work proceeds in buckets with STOP points. STOP means: present results,
 end turn. The human reviews externally before continuing. Failure protocol:
 persistent non-match after honest iteration is documented in
 docs/FINDINGS (with residual diff analysis), never papered over.
+Every bucket close and every STOP that lands a new finding includes an
+attribution check: does docs/ATTRIBUTION_AND_FINDINGS.md reflect all
+findings closed since its last revision? If not, refreshing it is part
+of the checkpoint, not deferred work.

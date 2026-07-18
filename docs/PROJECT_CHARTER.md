@@ -42,6 +42,19 @@ Three-layer discipline used throughout:
 - **Layer 1 — Spec:** interview before work; smallest independently reviewable buckets; hard checkpoints (STOP = present results, end turn, human reviews before continuation); assumptions flagged and listed.
 - **Layer 2 — Verifier:** exact, checkable success criteria stated before work; every completion claim accompanied by re-runnable verification output (cmp/sha256/objdump), never bare assertion; outputs reviewed by a second model (the claude.ai project conversation) at every STOP.
 - **Layer 3 — Environment:** durable rules live in CLAUDE.md files (per repo), not per-message prompts; protected paths enforced by settings.json deny rules AND filesystem permissions, not prose; scope bans written into the environment.
+- **Document ownership rule (added 2026-07-18):** every living document
+  must be owned by a ritual — a named, recurring moment in the process
+  (a checkpoint step, a bucket-close action, a tool that generates it)
+  that is responsible for keeping it current. A document with no ritual
+  owner will silently become archaeology; discovering one is a process
+  bug, fixed by assigning an owner, not by a one-off refresh.
+  Establishing the owner is part of creating any new standing document.
+  Current registry: charter → checkpoint scribe rule + human mirror
+  refresh at bucket close; ATTRIBUTION_AND_FINDINGS → checkpoint
+  attribution check (§8); FINDINGS docs → the discovering session at
+  its STOP; manifests/stats → tool-generated (§5 rule); CLAUDE.md/
+  settings → §8 ritual; WORKFLOW.md → Bucket 3+ effort-protocol
+  revisions at checkpoint.
 
 **Bucket protocol:** work proceeds in small buckets, one at a time; each bucket has explicit success criteria, non-goals, a failure protocol, and a checkpoint. Scope extensions to closed buckets get named (0.5, 0.6, 0.6b), never slid into.
 
@@ -127,7 +140,7 @@ Three-layer discipline used throughout:
 - Present plan → checkpoint → human review → proceed. Never proceed past a STOP.
 - Flag assumptions explicitly, separately, before proceeding.
 - Verify key decisions against the goal statement at every checkpoint; name any divergence.
-- **Checkpoint ritual also includes (added 2026-07-17):** confirming CLAUDE.md/settings.json still encode current charter rules (drift guard 8), and refreshing the repo's charter mirror if this document was amended.
+- **Checkpoint ritual also includes (added 2026-07-17):** confirming CLAUDE.md/settings.json still encode current charter rules (drift guard 8), and refreshing the repo's charter mirror if this document was amended, and confirming ATTRIBUTION_AND_FINDINGS.md reflects all findings closed since its last revision.
 - Review agent outputs (the "second model" role) — including overriding agent judgment where it conflicts with intent (see ccsh episode).
 - Explanations on request at any technical level (including plain-English and creative registers for sharing with friends).
 - Commit-at-checkpoint rhythm: every passed checkpoint gets a commit; git history = checkpoint ledger. Publishing (push) is a human act (agent push denied by settings).
