@@ -8,9 +8,35 @@ import sys
 from prg import REPO, load_manifests, sha256, validate_manifest, format_split
 
 
+def check_segment_hashes(m):
+    """Any manifest with a segment map + a locally extracted original gets
+    its per-segment sha256 rows verified (works for proofs-only targets
+    too — this is what makes the committed map spot-checkable)."""
+    target = m["target"]
+    extracted = os.path.join(REPO, "extracted", target)
+    if not (m.get("segments") and os.path.exists(extracted)):
+        return 0
+    with open(extracted, "rb") as f:
+        data = f.read()
+    bad = 0
+    for seg in m["segments"]:
+        if "sha256" not in seg:
+            continue
+        h = sha256(data[seg["start"]:seg["end"]])
+        if h != seg["sha256"]:
+            print(f"check: FAIL {target}: segment "
+                  f"[{seg['start']:#x},{seg['end']:#x}) hash mismatch")
+            bad += 1
+    if not bad:
+        n = sum(1 for s in m["segments"] if "sha256" in s)
+        print(f"check: PASS {target}: {n} segment hashes verified")
+    return bad
+
+
 def main():
     failures = 0
     for m in load_manifests():
+        failures += check_segment_hashes(m)
         if m.get("role") != "build":
             continue
         target = m["target"]

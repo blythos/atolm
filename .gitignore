@@ -12,6 +12,14 @@
 # Vendored proprietary toolchain binaries (fetched by `make setup`)
 /toolchain/vendor/
 
+# Local analysis tooling: Ghidra install + generated projects (disc-derived,
+# never committed — the generator script in tools/ is the committed artifact)
+/tools-local/
+
+# Reference clones (yaz0r/Azel etc.) — identification/naming reference only,
+# never imported as source
+/reference/
+
 # Local scratch
 __pycache__/
 *.pyc

@@ -1,0 +1,42 @@
+# Symbols for 1ST_READ.PRG (vma_base 0x06006000).
+# Format: <hex-address> <name> <provenance>
+# Provenance vocabulary (binding, see config/README.md):
+#   verified            — name/identity proven (matched function, or
+#                         disc-authoritative structure like the entry point)
+#   hypothesis-azel     — imported from yaz0r/Azel structural cross-reference
+#                         (JP-build reimplementation; identification only,
+#                         NEVER source. May be wrong for the US build.)
+#   hypothesis-analysis — our own read of the code/data (unproven)
+# Default names (func_<addr>) are implicit and never listed here — a row
+# exists only when a function carries a non-default name or a
+# provenance-worthy identification.
+
+0x06006622 func_06006622 verified
+0x06006000 start hypothesis-analysis
+
+# Bucket 2 Azel pilot (2026-07-18): yaz0r/Azel targets the JP build, but
+# every address-bearing function identifier in his repo (script-command
+# dispatch tables, validation-harness hook constants) was tested against
+# our US function inventory: 19 of 20 real function addresses land exactly
+# on US function starts (the 20th is a documented mid-function return
+# address). The JP/US resident modules are largely address-identical.
+# Names below are yaz0r's, imported verbatim as identification hypotheses.
+0x060079f0 ResetCollisionFrame hypothesis-azel
+0x06007c50 ComputeCollisionSeparation hypothesis-azel
+0x0600887c HandleCollisionWithTownEnv hypothesis-azel
+0x06009324 ProcessTownMeshCollision hypothesis-azel
+0x0600cc78 setSomethingInNpc0 hypothesis-azel
+0x0600ccb4 initNPC hypothesis-azel
+0x060144c0 updateWorldGrid hypothesis-azel
+0x06014df2 initNPCFromStruct hypothesis-azel
+0x06014f70 GetCellAtWorldPos hypothesis-azel
+0x060238ba UpdateInputs hypothesis-azel
+0x06027110 setNextGameStatus hypothesis-azel
+0x06029bf0 titleScreenWorkArea_Draw hypothesis-azel
+0x0602c1d0 fadeOutAllSequences hypothesis-azel
+0x0602c2ca playSystemSoundEffect hypothesis-azel
+0x0602fa00 runTasks hypothesis-azel
+0x0603011e terminateTown hypothesis-azel
+0x0603570e Product3d hypothesis-azel
+0x060359a4 FPPow2 hypothesis-azel
+0x060359ae SqrtF hypothesis-azel

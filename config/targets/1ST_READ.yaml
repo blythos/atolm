@@ -1,5 +1,17 @@
-# 1ST_READ.PRG — proofs-only target (Bucket 1 non-goal: no full rebuild).
-# Carries the Bucket 0 matched-function proofs. Format: config/README.md.
+# 1ST_READ.PRG — proofs-only target (no full rebuild yet; Bucket 4 scale-out).
+# Carries the Bucket 0 matched-function proofs and, since Bucket 2, the full
+# five-state segment map. Format: config/README.md.
+#
+# Segmentation evidence (Bucket 2, 2026-07; all re-runnable):
+#   tools/sh2_map.py        prologue/call-target/ptr32 detector + pool map
+#   tools/ghidra_gen.sh     seeded headless Ghidra project + xref analysis
+#   tools/ymir_fixture.py   savestate residency (load address confirmed:
+#                           title.savestate holds all 253650 bytes at
+#                           0x06006000, byte-identical)
+#   tools/segment_report.py evidence chain for any single address
+# Function inventory snapshot: 1ST_READ.functions.tsv (same directory).
+# Byte-level: 84.9% instruction-covered, 11.0% pools/data-in-code,
+# 4.1% unclassified (small blocks; live inside unattempted segments).
 target: 1ST_READ.PRG
 role: proofs-only
 disc: 1
@@ -7,6 +19,90 @@ disc_path: 1ST_READ.PRG
 size: 253650
 sha256: 2bb6c2d66ec17fe3e2333009f82cd0df29a5e7ac6c407d84077edeec070671c6
 vma_base: 0x06006000   # IP.BIN header field at offset 0xE8 (disc-authoritative)
+
+# Ordered, covers [0, size). Code segments include their literal pools and
+# small embedded tables (SEGALOGO precedent: a unit's .text owns its pools);
+# in-code data pockets noted below stay inside unattempted rows until
+# Bucket 3 cuts unit boundaries. sha256 is of the original bytes per row.
+segments:
+  - start: 0x00000
+    end: 0x00622
+    state: unattempted
+    sha256: a8e5a1f34e6667a80ffdf72159fe551a4bccd78c2492183e2cd4d36e3bf98f3c
+  - start: 0x00622
+    end: 0x00634
+    state: matched
+    unit: func_06006622
+    sha256: 66e77b5a2c5d36fbde1ec410c1b33a2dbb6d30c38eb176e3202df0034bdfc3d5
+  - start: 0x00634
+    end: 0x1c820
+    state: unattempted
+    # in-code data pockets (noted, not cut out): runtime-written tables at
+    # vma 0x601ee3c-0x601ef5a and 0x601fbc0-0x601fcde (function-pointer
+    # slots; 440 bytes total change across Ymir savestates), plus small
+    # pools/jump tables per function
+    sha256: 40236108ff93e72515aecd810a9b91becc0f566da1d055309b67f75c36d31100
+  - start: 0x1c820
+    end: 0x1c97c
+    state: library-candidate
+    evidence: >-
+      The ascending-order pocket (vma 0x06022820-0x0602297c, charter §4):
+      callee-save pushes in ascending r8->r14 order = GCC-family idiom,
+      isolated inside the otherwise-SHC binary. Middleware hypothesis
+      (candidate CRI/CPK). Bucket 3 confirms with the 0.6b fingerprints.
+    sha256: 6d275c2734d19773537c69d326092c45c3ecb038ab67ff37b6f11a9b7756f084
+  - start: 0x1c97c
+    end: 0x2dc40
+    state: unattempted
+    sha256: e4a720f4eccdb2fda919b5d93711c2319c6f3d87cbcff2c021e87cc9a5ce23b9
+  - start: 0x2dc40
+    end: 0x2e20c
+    state: data
+    # vma 0x6033c40-0x603420c: contiguous word/pointer table block, no
+    # instruction coverage, no prologues; untyped (cheap typing found no
+    # strings)
+    sha256: c7078fc77fc2c6ff4cd1285f637ef929912eda951bccc2ad1bdf4f267179bfca
+  - start: 0x2e20c
+    end: 0x33692
+    state: unattempted
+    sha256: 50bd8f9a4c9d7d342ed07ec6fd2c3b0aa2ec7017fb2bde701519b0edd1ac80a2
+  - start: 0x33692
+    end: 0x3384a
+    state: library-candidate
+    evidence: >-
+      Function cluster vma 0x6039692-0x603984a; the function at 0x60397e4
+      holds a literal-pool pointer to the SBL version-string block
+      (0x6043c34 area) — version-reporting functions are library code by
+      construction. Weak-moderate confidence; Bucket 3 job.
+    sha256: de10650147a192dedc47d03f089e6d18f6ebb88d97ea94e505613217675ca017
+  - start: 0x3384a
+    end: 0x3450c
+    state: unattempted
+    sha256: 4a6b5cda3f157b311cf080a1e16e3bfae5e52c87224a224f62f7e8a7b68659f6
+  - start: 0x3450c
+    end: 0x345fc
+    state: library-candidate
+    evidence: >-
+      Function vma 0x603a50c (+pool to 0x603a5fc); pool pointer into the
+      SBL version-string block, same argument as the 0x33692 row.
+    sha256: f77d4e159cf82f96e84c30e0f937c10f4465729f1af7f929580a591851275f74
+  - start: 0x345fc
+    end: 0x3cd20
+    state: unattempted
+    sha256: 0c52525c4005c7793e9713a3b08699815d04e403838d8d1870cfa723daeec0f1
+  - start: 0x3cd20
+    end: 0x3ded2
+    state: data
+    # tail data region (vma 0x6042d20-0x6043ed2), typed where cheap:
+    #   0x6042e68  SGL work-area debug strings ("MASTER%4d"/"SLAVE %4d"...)
+    #   0x60430f0  SGL TaskFree() diagnostic strings
+    #   0x604322c  filename table (MENUBK*.BIN/CGB ...) — NOTE: the
+    #              973-entry runtime file table from prior asset work is
+    #              NOT in 1ST_READ.PRG; only small tables live here
+    #   0x6043708  NAME_ENT.CGB/SCB filename block + tables
+    #   0x6043bec  "PANDRA_3_0" + config tables
+    #   0x6043c34  SBL/SGL version-string block (BUP/GFS_SBL/SYS/CPK)
+    sha256: b80cd547a449c2bfdf02ec2969445ecfa020bf24dd8458c8c915687e5c53b6ff
 
 units:
   func_06006622:

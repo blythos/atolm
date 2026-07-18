@@ -53,6 +53,9 @@ locally from the user's own disc.
 - tools/         our Python/shell tooling (iso9660.py vendored here)
 - docs/          documentation incl. ATTRIBUTION_AND_FINDINGS.md
 - build/         gitignored; all build output
+- tools-local/   gitignored; Ghidra install + generated projects (disc-derived)
+- reference/     gitignored; reference clones (yaz0r/Azel, Ymir) — naming/
+                 format evidence ONLY, never imported as source
 
 ## Task routing (two-agent rule)
 Claude Code in WSL: anything touching src/, config/, toolchain/, builds,
@@ -64,7 +67,10 @@ can verify where it stands.
 - NO asset extraction/conversion of any kind (models, textures, audio,
   video). That work lives in the sibling repo (pds-asset-tools).
 - NO reimplementation code, renderers, SDL, viewers.
-- NO Ghidra/permuter/dedup infrastructure yet (Buckets 2–3).
+- NO permuter/asm-differ/dedup infrastructure yet (Bucket 3+). Ghidra
+  entered at Bucket 2 as LOCAL-ONLY tooling: the generated project is
+  disc-derived and lives in gitignored tools-local/; only the generator
+  script, seeds detector, and symbols file are committed.
 - NO second target until SEGALOGO.PRG is complete and checkpointed.
 - If a task presents as "make X generic for other games" rather than
   "match X", it is out of scope (deferred: Saturn Decomp Kit).

@@ -106,6 +106,41 @@ residual-diff analysis lives at the `findings:` path (docs/FINDINGS/,
 prose only, never byte dumps) and the field is mandatory — validation
 fails without it. `unattempted` means not yet attempted.
 
+## symbols/<TARGET>.sym — symbol names + provenance (Bucket 2)
+
+Names and addresses are our work product, not Sega bytes — committable.
+One line per named address: `<hex-addr> <name> <provenance>`. Consumed by
+tools/ghidra_gen.sh (names appear in the generated Ghidra project).
+
+Naming scheme (binding):
+
+- **Default:** every function is `func_<vma>` (lowercase hex, no 0x).
+  Defaults are implicit — never listed in the .sym file.
+- **Promotion:** a function gets a meaningful name only when someone can
+  state *why* — and the why is the provenance tag, mandatory on every row:
+  - `verified` — identity proven: the function is byte-matched and its
+    role is established by our own C, or the fact is disc-authoritative
+    (e.g. the entry point per IP.BIN).
+  - `hypothesis-azel` — imported from yaz0r/Azel structural
+    cross-reference. Azel targets the JP build and is a behavioral
+    reimplementation: identification/naming evidence ONLY, never source,
+    never "matched" (charter §6). May be wrong for the US build.
+  - `hypothesis-analysis` — our own reading of the code/data (unproven).
+- Hypothesis names keep the address visible where practical
+  (`azel_readSaturnRegion_060XXXXX` is better than a bare guess) — but
+  brevity wins for heavily-referenced names; the .sym row preserves the
+  mapping either way.
+- Renames/demotions are ordinary commits; the .sym file is the single
+  source of naming truth (Ghidra projects are regenerated, never edited).
+
+## targets/<TARGET>.functions.tsv — function inventory snapshot
+
+Committed snapshot of the function inventory (vma, size, callers,
+evidence chain) produced by tools/sh2_map.py + tools/ghidra_gen.sh, for
+Bucket 3 candidate selection and review. Regenerable; the committed copy
+pins what Bucket 3 decisions were based on. Contains only our analysis
+(addresses/sizes/counts) — no Sega bytes.
+
 ### `functions` (progress records)
 
 One record per function, for progress accounting and documentation:

@@ -56,7 +56,7 @@ make check      # byte-identity vs your extracted originals
 without needing a disc (hash equality with the manifest is the proof) —
 this is what CI runs.
 
-## Current status (Bucket 2)
+## Current status (Bucket 2 complete: 1ST_READ.PRG mapped)
 
 Every segment of every target is in exactly one of five states, and
 progress is always reported as the full split — never the matched figure
@@ -74,7 +74,17 @@ alone:
 | target | rebuild | matched | attempted | unattempted | library-candidate | data |
 |---|---|---|---|---|---|---|
 | SEGALOGO.PRG (3,620 B) | byte-identical | 0 B | 328 B (best candidate 317/328, [analysis](docs/FINDINGS/SEGALOGO_segalogo.md)) | 0 B | 0 B | 3,292 B |
-| 1ST_READ.PRG (253,650 B) | proofs-only | 18 B (1 unit, sha256-proven) | — | segment map is Bucket 2 work, in progress | — | — |
+| 1ST_READ.PRG (253,650 B) | proofs-only | 18 B (1 unit, sha256-proven) | 0 B | 246,590 B | 1,028 B (ascending pocket + 2 SBL-version clusters) | 6,014 B |
+
+1ST_READ.PRG's map (Bucket 2): ~3,600 function starts inventoried
+(config/targets/1ST_READ.functions.tsv) with per-address evidence chains
+(prologue idiom / call target / pointer table / Ghidra xref —
+spot-checkable via `tools/segment_report.py <addr>`); byte-level 84.9%
+instruction-covered, 11.0% pools/data-in-code, 4.1% unclassified. Load
+address 0x06006000 confirmed against emulator ground truth (Ymir
+savestate holds the full image byte-identical). Symbols carry mandatory
+provenance tags (`verified` / `hypothesis-azel` / `hypothesis-analysis`,
+see config/README.md); 19 names imported from yaz0r/Azel cross-reference.
 
 A unit only counts as **matched** when its recompiled bytes are
 byte-identical; "96.6% of bytes equal" is honestly reported as
