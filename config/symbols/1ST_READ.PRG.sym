@@ -40,3 +40,68 @@
 0x0603570e Product3d hypothesis-azel
 0x060359a4 FPPow2 hypothesis-azel
 0x060359ae SqrtF hypothesis-azel
+
+# Bucket 3 STOP 1 — library identification (2026-07-18). Rows emitted by:
+#   tools/libscan.py extracted/1ST_READ.PRG reference/SBL621/LIB/*.LIB \
+#     reference/SBL621/LIB/SYS_*.OBJ --emit symbols
+# provenance 'verified': bytes proven identical to the named catalogue
+# member (every non-relocation byte exact at a unique placement).
+0x0603d7f0 GFBF_GetTranData verified  # SEGADGFS.LIB/gfsd_buf+0x0, library-identified
+0x0603d80e GFBF_GetNumData verified  # SEGADGFS.LIB/gfsd_buf+0x1e, library-identified
+0x0603d828 GFBF_GetSrcPk verified  # SEGADGFS.LIB/gfsd_buf+0x38, library-identified
+0x0603d846 GFBF_GetSctData verified  # SEGADGFS.LIB/gfsd_buf+0x56, library-identified
+0x0603d862 GFBF_RtnPk verified  # SEGADGFS.LIB/gfsd_buf+0x72, library-identified
+0x0603d880 gfbf_getSctDt verified  # SEGADGFS.LIB/gfsd_buf+0x90, library-identified
+0x060406c0 CDC_CdSetCon verified  # SEGA_CDC.LIB/cdc_dev+0x0, library-identified
+0x060406e6 CDC_CdGetCon verified  # SEGA_CDC.LIB/cdc_dev+0x26, library-identified
+0x06040720 CDC_CdGetLastBuf verified  # SEGA_CDC.LIB/cdc_dev+0x60, library-identified
+0x06040764 CDC_SetFiltRange verified  # SEGA_CDC.LIB/cdc_sel+0x0, library-identified
+0x0604078e CDC_GetFiltRange verified  # SEGA_CDC.LIB/cdc_sel+0x2a, library-identified
+0x060407de CDC_SetFiltSubh verified  # SEGA_CDC.LIB/cdc_sel+0x7a, library-identified
+0x0604081c CDC_GetFiltSubh verified  # SEGA_CDC.LIB/cdc_sel+0xb8, library-identified
+0x06040872 CDC_SetFiltMode verified  # SEGA_CDC.LIB/cdc_sel+0x10e, library-identified
+0x0604089c CDC_GetFiltMode verified  # SEGA_CDC.LIB/cdc_sel+0x138, library-identified
+0x060408e0 CDC_SetFiltCon verified  # SEGA_CDC.LIB/cdc_sel+0x17c, library-identified
+0x06040914 CDC_GetFiltCon verified  # SEGA_CDC.LIB/cdc_sel+0x1b0, library-identified
+0x06040962 CDC_ResetSelector verified  # SEGA_CDC.LIB/cdc_sel+0x1fe, library-identified
+0x06040998 CDC_GetBufSiz verified  # SEGA_CDC.LIB/cdc_bif+0x0, library-identified
+0x060409e6 CDC_GetSctNum verified  # SEGA_CDC.LIB/cdc_bif+0x4e, library-identified
+0x06040a2a CDC_CalActSiz verified  # SEGA_CDC.LIB/cdc_bif+0x92, library-identified
+0x06040a58 CDC_GetActSiz verified  # SEGA_CDC.LIB/cdc_bif+0xc0, library-identified
+0x06040abc CDC_GetSctInfo verified  # SEGA_CDC.LIB/cdc_bif+0x124, library-identified
+0x06040b16 CDC_ExeFadSearch verified  # SEGA_CDC.LIB/cdc_bif+0x17e, library-identified
+0x06040b42 CDC_GetFadSearch verified  # SEGA_CDC.LIB/cdc_bif+0x1aa, library-identified
+0x06040b9c CDC_SetSctLen verified  # SEGA_CDC.LIB/cdc_bio+0x0, library-identified
+0x06040bc6 CDC_GetSctData verified  # SEGA_CDC.LIB/cdc_bio+0x2a, library-identified
+0x06040bf4 CDC_DelSctData verified  # SEGA_CDC.LIB/cdc_bio+0x58, library-identified
+0x06040c22 CDC_GetdelSctData verified  # SEGA_CDC.LIB/cdc_bio+0x86, library-identified
+0x06040c50 CDC_PutSctData verified  # SEGA_CDC.LIB/cdc_bio+0xb4, library-identified
+0x06040c7a CDC_CopySctData verified  # SEGA_CDC.LIB/cdc_bio+0xde, library-identified
+0x06040cae CDC_MoveSctData verified  # SEGA_CDC.LIB/cdc_bio+0x112, library-identified
+0x06040ce2 CDC_GetCopyErr verified  # SEGA_CDC.LIB/cdc_bio+0x146, library-identified
+0x06042070 CPKD_SetMode verified  # SEGA_CPK.LIB/cpk_deb+0x0, library-identified
+0x06042076 CPKD_SetPrintAddr verified  # SEGA_CPK.LIB/cpk_deb+0x6, library-identified
+0x0604209e CPKD_Init verified  # SEGA_CPK.LIB/cpk_deb+0x2e, library-identified
+0x060420e4 CPKD_PrintStr verified  # SEGA_CPK.LIB/cpk_deb+0x74, library-identified
+0x06042110 CPKD_PrintData verified  # SEGA_CPK.LIB/cpk_deb+0xa0, library-identified
+0x0604214c InitSlaveSH verified  # SEGA_CPK.LIB/slavesh+0x0, library-identified
+0x060421ea SlaveSHmain verified  # SEGA_CPK.LIB/slavesh+0x9e, library-identified
+0x06042278 cpk_InitScuDspDma verified  # SEGA_CPK.LIB/cpk_scu+0x0, library-identified
+0x06042294 cpk_TransScuDspDma verified  # SEGA_CPK.LIB/cpk_scu+0x1c, library-identified
+0x060422aa cpk_WaitCompletedScuDspDma verified  # SEGA_CPK.LIB/cpk_scu+0x32, library-identified
+0x060422b8 cpk_IsCompletedScuDspDma verified  # SEGA_CPK.LIB/cpk_scu+0x40, library-identified
+0x0604235c DMA_CpuSetComPrm verified  # SEGA_DMA.LIB/dma_cpu0+0x0, library-identified
+0x060423a4 DMA_CpuSetPrm verified  # SEGA_DMA.LIB/dma_cpu0+0x48, library-identified
+0x06042482 DMA_CpuStart verified  # SEGA_DMA.LIB/dma_cpu0+0x126, library-identified
+0x06042494 DMA_CpuStop verified  # SEGA_DMA.LIB/dma_cpu0+0x138, library-identified
+0x060424a6 DMA_CpuAllStop verified  # SEGA_DMA.LIB/dma_cpu0+0x14a, library-identified
+0x060424b2 DMA_CpuGetComStatus verified  # SEGA_DMA.LIB/dma_cpu0+0x156, library-identified
+0x060424c4 DMA_CpuGetStatus verified  # SEGA_DMA.LIB/dma_cpu0+0x168, library-identified
+0x060424e4 DMA_CpuMemCopy4 verified  # SEGA_DMA.LIB/dma_cpu3+0x0, library-identified
+0x06042574 DMA_CpuResult verified  # SEGA_DMA.LIB/dma_cpu5+0x0, library-identified
+0x060425cc cpk_DecIntra24 verified  # SEGA_CPK.LIB/cpk_ra+0x0, library-identified
+0x060426ee cpk_DecIntra15 verified  # SEGA_CPK.LIB/cpk_ra+0x122, library-identified
+0x060427f0 cpk_DecInter24 verified  # SEGA_CPK.LIB/cpk_er+0x0, library-identified
+0x0604292e cpk_DecInter15 verified  # SEGA_CPK.LIB/cpk_er+0x13e, library-identified
+0x06042a4c cpk_MakeCodeBook24 verified  # SEGA_CPK.LIB/cpk_mc+0x0, library-identified
+0x06042bb4 cpk_MakeCodeBook15from24 verified  # SEGA_CPK.LIB/cpk_mc+0x168, library-identified

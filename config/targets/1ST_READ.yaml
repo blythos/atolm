@@ -49,7 +49,11 @@ segments:
       The ascending-order pocket (vma 0x06022820-0x0602297c, charter §4):
       callee-save pushes in ascending r8->r14 order = GCC-family idiom,
       isolated inside the otherwise-SHC binary. Middleware hypothesis
-      (candidate CRI/CPK). Bucket 3 confirms with the 0.6b fingerprints.
+      (candidate CRI/CPK). Bucket 3 scan result: NO match in the Sept-1997
+      catalogue — neither the SHC-built .LIBs nor the GNU-built .A archives
+      (tools/libscan.py, 2026-07-18); 8-gram similarity vs all catalogue
+      code sections is noise-level (max 7/290). Consistent with PDS's CPK
+      being the older 1.24 (1996-06-14) build. Hypothesis stands, unconfirmed.
     sha256: 6d275c2734d19773537c69d326092c45c3ecb038ab67ff37b6f11a9b7756f084
   - start: 0x1c97c
     end: 0x2dc40
@@ -73,7 +77,8 @@ segments:
       Function cluster vma 0x6039692-0x603984a; the function at 0x60397e4
       holds a literal-pool pointer to the SBL version-string block
       (0x6043c34 area) — version-reporting functions are library code by
-      construction. Weak-moderate confidence; Bucket 3 job.
+      construction. Bucket 3 scan: no exact catalogue match (1996-vs-1997
+      version drift expected here by definition); stays candidate.
     sha256: de10650147a192dedc47d03f089e6d18f6ebb88d97ea94e505613217675ca017
   - start: 0x3384a
     end: 0x3450c
@@ -86,10 +91,135 @@ segments:
       Function vma 0x603a50c (+pool to 0x603a5fc); pool pointer into the
       SBL version-string block, same argument as the 0x33692 row.
     sha256: f77d4e159cf82f96e84c30e0f937c10f4465729f1af7f929580a591851275f74
+  # ---- Bucket 3 library identification (STOP 1) ----------------------
+  # The former [0x345fc, 0x3cd20) unattempted span split by the 0.6b
+  # catalogue fingerprint scan. All library-identified rows and their
+  # hashes emitted by: tools/libscan.py extracted/1ST_READ.PRG
+  # reference/SBL621/LIB/*.LIB reference/SBL621/LIB/SYS_*.OBJ --emit yaml
+  # (scan record: config/targets/1ST_READ.libscan.tsv). PDS ships
+  # 1996-vintage SBL (BUP 1.21/GFS_SBL 2.10/SYS 2.20/CPK 1.24 strings at
+  # 0x3cd20+); the catalogue is Sept-1997 (SBL 6.21), so only members
+  # unchanged between the two match exactly — assembly members and stable
+  # C modules. Missed members in between stay library-candidate.
   - start: 0x345fc
-    end: 0x3cd20
+    end: 0x377f0
     state: unattempted
-    sha256: 0c52525c4005c7793e9713a3b08699815d04e403838d8d1870cfa723daeec0f1
+    sha256: 61299a59c702e4f9fd7b90d11cd868228b7d98dbd253aee7d935c38b3a7f1dc2
+  - start: 0x377f0
+    end: 0x37898
+    state: library-identified
+    member: SEGADGFS.LIB/gfsd_buf
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 152/168 fixed bytes of SEGA_P exact at unique placement, translator C_SH; byte-identical twin: SEGA_GFS.LIB/gfs_buf
+    sha256: 896e0a0dbac6295f631498470110d2906d911b6a65ae94edb06cf567788e33c0
+  - start: 0x37898
+    end: 0x3a6c0
+    state: library-candidate
+    evidence: >-
+      Interior gap of the SBL block: flanked by exact member placements
+      (gfs(d)_buf above, cdc_dev below). Expected content: the 1996-build
+      GFS/STM/CDC-family members the Sept-1997 fingerprints missed
+      (version drift, cf. the near-hit policy — never forced).
+    sha256: 8504ec9fb3b08d7abc8c3bc4138765301396fbfb89a3e8e40dc3b6200c334724
+  - start: 0x3a6c0
+    end: 0x3a764
+    state: library-identified
+    member: SEGA_CDC.LIB/cdc_dev
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 154/164 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: 180ddb1235fb57967d7e84b8e7f162a83e42944434989a9b7a82c05f73d34580
+  - start: 0x3a764
+    end: 0x3a998
+    state: library-identified
+    member: SEGA_CDC.LIB/cdc_sel
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 556/564 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: 9ea627aa98c5d3644df57aa5f86b47817d5195f5162cc44aaba9d7e9669370b5
+  - start: 0x3a998
+    end: 0x3ab9c
+    state: library-identified
+    member: SEGA_CDC.LIB/cdc_bif
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 502/516 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: 83188fdaadefe765d4d436d9dde9c77764f92fffa3b8302b04230c534e721716
+  - start: 0x3ab9c
+    end: 0x3ad28
+    state: library-identified
+    member: SEGA_CDC.LIB/cdc_bio
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 388/396 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: 8ae87c81c0f6172aba16383cd94e5b888d2ab8bf39794fc8e132474722c4b9ec
+  - start: 0x3ad28
+    end: 0x3c070
+    state: library-candidate
+    evidence: >-
+      Interior gap of the SBL block: flanked by exact member placements
+      (cdc_bio above, cpk_deb below). Expected content: remaining 1996-build
+      CDC/BUP/SYS-family members (version drift; see block comment).
+    sha256: b4a3b47ac8e45d6be97212011279ac97f887c5bc7dfc345aafbccb4488592166
+  - start: 0x3c070
+    end: 0x3c14c
+    state: library-identified
+    member: SEGA_CPK.LIB/cpk_deb
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 198/220 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: ffc7a2efd2746f4e5b9862125c954cdcaf500e4ca5296ef86a7ae0c5cd15a4d0
+  - start: 0x3c14c
+    end: 0x3c278
+    state: library-identified
+    member: SEGA_CPK.LIB/slavesh
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 258/300 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: a31cbcc35f92b0875c182df09cf4366e7f77b3cf65c7cb814715d3f4bdd1fc4a
+  - start: 0x3c278
+    end: 0x3c35c
+    state: library-identified
+    member: SEGA_CPK.LIB/cpk_scu
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 228/228 fixed bytes of SEGA_P exact at unique placement, translator A_SH
+    sha256: ae02f41e1988051e1ed25459b53f5eacbe6035773a0ff3496e6038e926af515a
+  - start: 0x3c35c
+    end: 0x3c4e4
+    state: library-identified
+    member: SEGA_DMA.LIB/dma_cpu0
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 392/392 fixed bytes of SEGA_P exact at unique placement, translator C_SH. Same member 0.6b used for the codegen-drift proof; segment hash equals the extracted member P-section hash (cb4cb5b7).
+    sha256: cb4cb5b74e4a55957b3d27a33e771d7dbe75b14dde30a37a295d204044f59913
+  - start: 0x3c4e4
+    end: 0x3c574
+    state: library-identified
+    member: SEGA_DMA.LIB/dma_cpu3
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 118/144 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: dbb7ec373c016cb9b892819ca486da5281f5894f2134da02f2b9f2e9000db1a2
+  - start: 0x3c574
+    end: 0x3c5cc
+    state: library-identified
+    member: SEGA_DMA.LIB/dma_cpu5
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 68/88 fixed bytes of SEGA_P exact at unique placement, translator C_SH
+    sha256: 63164cb25fd25f32633017119509a822a675a23e876bd7d80ce911081600335c
+  - start: 0x3c5cc
+    end: 0x3c7f0
+    state: library-identified
+    member: SEGA_CPK.LIB/cpk_ra
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 546/546 fixed bytes of SEGA_P exact at unique placement, translator A_SH (+2 link-pad bytes)
+    sha256: b04bcc69a91c3ac340571fbd607a1e0ec08ab3fe3540654bbf2fcd4e634b6504
+  - start: 0x3c7f0
+    end: 0x3ca4c
+    state: library-identified
+    member: SEGA_CPK.LIB/cpk_er
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 602/602 fixed bytes of SEGA_P exact at unique placement, translator A_SH (+2 link-pad bytes)
+    sha256: 8b46ad2b63c788d4c4806789e3b4b492027a19538938daa0c97bd24b1bd0d225
+  - start: 0x3ca4c
+    end: 0x3cd20
+    state: library-identified
+    member: SEGA_CPK.LIB/cpk_mc
+    evidence: >-
+      Bucket 3 fingerprint scan (tools/libscan.py): 716/724 fixed bytes of SEGA_P exact at unique placement, translator A_SH. Block ends exactly at the data segment boundary 0x3cd20.
+    sha256: 4068581aabceb51cfdce044264fa1d8565e526f8fae286a80093a1eacbbb45bd
   - start: 0x3cd20
     end: 0x3ded2
     state: data

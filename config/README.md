@@ -34,16 +34,21 @@ Ordered, non-overlapping, and must cover `[0, size)` exactly — the build
 concatenates them and `make check` compares the result to the extracted
 original. For `role: build` targets the map drives the build; for
 analysis-mapped targets (1ST_READ) it is the committed segmentation record.
-Every segment carries a `state`, one of exactly five values
-(Bucket 2 vocabulary):
+Every segment carries a `state`, one of exactly six values
+(Bucket 2 vocabulary; `library-identified` added at Bucket 3 STOP 1):
 
 | state | meaning | build source |
 |---|---|---|
 | `matched` | unit recompiles byte-identical, sha256-proven | compiler output, hash-verified |
 | `attempted` | honest non-match, drift-class residual, **analysis on file** in docs/FINDINGS/ | original bytes (spliced) |
 | `unattempted` | code no one has tried to match yet | original bytes (spliced) |
-| `library-candidate` | code suspected SGL/SBL/CPK library (heuristic — Bucket 3 confirms or demotes) | original bytes (spliced) |
+| `library-candidate` | code suspected SGL/SBL/CPK library (heuristic — fingerprinting confirms or demotes) | original bytes (spliced) |
+| `library-identified` | bytes proven to be a named SBL/SGL/CPK catalogue member by fingerprint scan (tools/libscan.py: every non-relocation byte exact at a unique placement); requires `member:` | original bytes (spliced — library bytes are Sega/CRI-derived, never committed; the identification is metadata) |
 | `data` | not code; lives on the disc forever | original bytes (spliced) |
+
+`library-identified` is identification, not decompilation: the segment needs
+no C source and never enters the match loop; it subtracts from the
+denominator of code left to match.
 
 ```yaml
 segments:

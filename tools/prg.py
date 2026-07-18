@@ -8,11 +8,13 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# The five segment states (Bucket 2 vocabulary). Progress is always reported
-# as the full split across these — the matched figure is never shown alone.
+# The six segment states (Bucket 2 vocabulary + Bucket 3's
+# library-identified). Progress is always reported as the full split across
+# these — the matched figure is never shown alone.
 SEGMENT_STATES = ("matched", "attempted", "unattempted", "data",
-                  "library-candidate")
-CODE_STATES = ("matched", "attempted", "unattempted", "library-candidate")
+                  "library-candidate", "library-identified")
+CODE_STATES = ("matched", "attempted", "unattempted", "library-candidate",
+               "library-identified")
 UNIT_STATUSES = ("matched", "attempted", "unattempted")
 
 
@@ -49,6 +51,9 @@ def validate_manifest(m):
             errs.append(f"{where}: unknown state {state!r} "
                         f"(want {'|'.join(SEGMENT_STATES)})")
             continue
+        if state == "library-identified" and not seg.get("member"):
+            errs.append(f"{where}: library-identified requires member: "
+                        f"(catalogue lib/module the fingerprint matched)")
         if state in ("matched", "attempted"):
             uname = seg.get("unit")
             if uname not in units:
