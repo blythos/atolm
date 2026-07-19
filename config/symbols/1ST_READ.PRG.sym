@@ -105,3 +105,13 @@
 0x0604292e cpk_DecInter15 verified  # SEGA_CPK.LIB/cpk_er+0x13e, library-identified
 0x06042a4c cpk_MakeCodeBook24 verified  # SEGA_CPK.LIB/cpk_mc+0x0, library-identified
 0x06042bb4 cpk_MakeCodeBook15from24 verified  # SEGA_CPK.LIB/cpk_mc+0x168, library-identified
+
+# Bucket 3 deliverable 4 (Azel structural pilot, 2026-07-19): names from
+# yaz0r/Azel's overlayScriptFunctions address->name dispatch tables (explicit
+# JP-build address annotations; = US per the JP/US identity finding). Both are
+# leaf functions the prologue detector missed (no callee-save; the documented
+# blind spot) — real functions, absent from the seed inventory. Call-graph
+# propagation (tools/azel_propagate.py) yielded no additional reliable names
+# for 1ST_READ; see docs/FINDINGS/1ST_READ_azel_pilot.md.
+0x0600cddc getNpcData5E hypothesis-azel
+0x0602c308 playSoundEffect_bank5 hypothesis-azel
