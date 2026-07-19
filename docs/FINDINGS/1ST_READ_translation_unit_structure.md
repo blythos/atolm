@@ -1,7 +1,11 @@
-# 1ST_READ.PRG — the matching unit is the translation unit, not the function
+# Bucket 4 structural input: the matching unit is the translation unit, not the function
 
 **Date:** 2026-07-19 (Bucket 3 calibration campaign, structural finding)
-**Status:** decision-grade; drives Bucket 4's unit of work.
+**Status:** decision-grade; **the single most important result of Bucket 3.**
+It redefines Bucket 4's unit of work and seeds a proposed charter amendment
+at STOP 3 (new finding in §4; Bucket 4's plan reoriented around translation
+units, not functions). This is a standalone structural finding, not a
+campaign footnote.
 
 ## Finding
 
@@ -50,16 +54,31 @@ displacement against the function's own `[start,end)`. Spot-check any
 function with `tools/segment_report.py <vma>` plus
 `tools/sh-elf.sh <dir> objdump -D -b binary -m sh2 -EB orig.bin`.
 
-## Related detector note (Finding 1, same campaign)
+## Bucket 4 prerequisite: the function-boundary detector bug (Finding 1)
 
-Seed anchoring: `sh2_map.py` seeds a bare `sts.l pr,@-r15` as a function
-start, but SHC often schedules an instruction between the register push and
-the PR push, so that `sts.l pr` is the *tail* of a prologue beginning a few
-bytes earlier. **7 of 40 sampled seeds (17.5%) were such mis-split prologue
-tails.** Consequence: the Bucket 2 inventory's ~3,600-function count is
-inflated — the true function denominator is smaller, which makes every
-match-rate forecast slightly optimistic in the count but the *fraction*
-sound. Fixing the `sts.l-pr-not-at-head` case in `sh2_map.py` is a **Bucket 4
-prerequisite**; `tools/campaign_select.py` already corrects it for the
-campaign (folds a mis-split tail back into the preceding start when the gap
-is prologue-only and rts-free).
+**Bug.** `sh2_map.py` seeds a bare `sts.l pr,@-r15` as a function start, but
+SHC often schedules an instruction between the register push and the PR push
+(e.g. `mov.l r14,@-r15; mov r4,r0; sts.l pr,@-r15`), so that `sts.l pr` is the
+*tail* of a prologue that began a few bytes earlier. It also seeds
+mid-function `mov.l rN,@-r15` argument spills as if they were prologue pushes.
+Both create false function starts that (a) inflate the count and (b) truncate
+the preceding function's span at the false start.
+
+**Measured impact.** 7 of 40 sampled seeds (17.5%) were mis-split prologue
+tails. The Bucket 2 inventory's ~3,600-function count is inflated by roughly
+that fraction — the true function denominator is smaller. Match-rate
+*fractions* stay sound, but any per-function *count*-based forecast is
+optimistic and must be discounted ~15–20%.
+
+**Fix approach (noted while fresh; a Bucket 4 prerequisite before any
+scale-out campaign).** Do not classify a start from prologue-shape alone.
+Instead run flow-reachability over all seeds (the algorithm is already
+implemented in `tools/fn_extent.py`): compute each seed's reachable code
+extent `[start, code_end)` following fall-through + intra-function branches,
+calls non-extending, stopping at `rts`. **Any seed that lies strictly inside
+another seed's `[start, code_end)` is not a real function start — drop it and
+merge.** This subsumes both failure modes (prologue-tail `sts.l pr` and
+mid-function spill pushes) with one reachability pass, and needs no
+prologue-shape special-casing. `tools/campaign_select.py` already applies the
+narrower prologue-tail correction for the campaign; the general
+reachability-merge is the Bucket 4 detector rewrite.
