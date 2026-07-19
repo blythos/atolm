@@ -1,0 +1,45 @@
+# Bucket 3 calibration campaign — 40-function sample (tools/campaign_select.py seed 3),
+# boundaries + classification from tools/fn_extent.py (flow reachability).
+# class: isolated-ok (matchable alone) | multi-fn:bsr(N) (calls N neighbours)
+#        | multi-fn:pool(N) (loads from a shared/distant pool).
+# seed	true_start	code_size	tag	calls	branches	ext_bsr	dist_pool	class
+0x60067f8	0x60067f8	28	calls	1	0	1	2	multi-fn:bsr(1)
+0x6007280	0x6007280	220	calls-branch	13	11	2	7	multi-fn:bsr(2)
+0x6007c60	0x6007c60	2624	calls-branch	117	141	0	3	multi-fn:pool(3)
+0x60086dc	0x60086dc	356	calls-branch	17	18	1	0	multi-fn:bsr(1)
+0x6009b42	0x6009b42	66	calls	3	0	1	0	multi-fn:bsr(1)
+0x600bfb0	0x600bfb0	28	calls	1	0	0	0	isolated-ok
+0x600ca34	0x600ca34	360	calls-branch	11	23	2	6	multi-fn:bsr(2)
+0x600fe2e	0x600fe2e	76	leaf-branch	0	7	0	2	multi-fn:pool(2)
+0x6011e0e	0x6011e0e	56	calls-branch	1	2	0	2	multi-fn:pool(2)
+0x60122e8	0x60122e8	84	calls-branch	1	3	0	1	multi-fn:pool(1)
+0x60144c0	0x60144c0	418	calls-branch	7	15	0	2	multi-fn:pool(2)
+0x6014608<-0x601460c	0x6014608	90	calls-branch	2	4	0	0	isolated-ok
+0x6014d14	0x6014d14	108	calls-branch	1	2	0	0	isolated-ok
+0x6014f70	0x6014f70	122	calls-branch	2	9	0	0	isolated-ok
+0x6016ffc	0x6016ffc	344	calls-branch	1	4	1	0	multi-fn:bsr(1)
+0x6019a20<-0x6019a24	0x6019a20	136	calls-branch	10	12	2	16	multi-fn:bsr(2)
+0x601a36c	0x601a36c	62	leaf-branch	0	6	0	3	multi-fn:pool(3)
+0x601df30	0x601df30	90	calls-branch	2	2	0	5	multi-fn:pool(5)
+0x6020b6e	0x6020b6e	38	calls-branch	1	1	1	0	multi-fn:bsr(1)
+0x6020d58<-0x6020d5c	0x6020d58	104	calls-branch	5	4	1	4	multi-fn:bsr(1)
+0x6020dc0<-0x6020dc4	0x6020dc0	98	leaf-branch	2	2	2	0	multi-fn:bsr(2)
+0x6024be8<-0x6024bec	0x6024be8	162	calls-branch	2	9	0	2	multi-fn:pool(2)
+0x6024ed6	0x6024ed6	990	calls-branch	8	1	0	0	isolated-ok
+0x60253e8	0x60253e8	346	calls-branch	1	5	1	0	multi-fn:bsr(1)
+0x6025470	0x6025470	80	calls-branch	2	4	0	3	multi-fn:pool(3)
+0x60255d6<-0x60255dc	0x60255d6	64	calls-branch	1	2	1	0	multi-fn:bsr(1)
+0x6028876	0x6028876	54	calls-branch	1	2	0	2	multi-fn:pool(2)
+0x602951e	0x602951e	112	calls-branch	6	3	1	4	multi-fn:bsr(1)
+0x6029aae	0x6029aae	26	calls	1	0	0	3	multi-fn:pool(3)
+0x6029bca	0x6029bca	38	calls	2	0	0	3	multi-fn:pool(3)
+0x602abc0	0x602abc0	98	calls	3	1	0	0	isolated-ok
+0x602c628<-0x602c62c	0x602c628	110	calls-branch	7	6	7	0	multi-fn:bsr(7)
+0x6031184	0x6031184	84	calls-branch	2	2	1	2	multi-fn:bsr(1)
+0x6034212	0x6034212	338	calls-branch	0	22	0	0	isolated-ok
+0x6035074	0x6035074	128	calls-branch	8	8	0	0	isolated-ok
+0x6037b9e	0x6037b9e	28	calls-branch	0	1	0	0	isolated-ok
+0x6038b0c	0x6038b0c	102	calls-branch	8	9	5	1	multi-fn:bsr(5)
+0x603990e	0x603990e	156	leaf-branch	4	11	1	4	multi-fn:bsr(1)
+0x6039ba8	0x6039ba8	24	calls-branch	1	1	1	1	multi-fn:bsr(1)
+0x603cb28	0x603cb28	244	calls-branch	11	12	1	0	multi-fn:bsr(1)

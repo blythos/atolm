@@ -40,13 +40,22 @@ segments:
     unit: func_06006622
     sha256: 66e77b5a2c5d36fbde1ec410c1b33a2dbb6d30c38eb176e3202df0034bdfc3d5
   - start: 0x00634
-    end: 0x1c820
+    end: 0x0e608
     state: unattempted
     # in-code data pockets (noted, not cut out): runtime-written tables at
     # vma 0x601ee3c-0x601ef5a and 0x601fbc0-0x601fcde (function-pointer
     # slots; 440 bytes total change across Ymir savestates), plus small
     # pools/jump tables per function
-    sha256: 40236108ff93e72515aecd810a9b91becc0f566da1d055309b67f75c36d31100
+    sha256: 6b970386ca4d713a7d4b6dc916852d8f14c540edbf8ebe6c64c1c06d0960e0e0
+  - start: 0x0e608
+    end: 0x0e662
+    state: matched
+    unit: func_06014608
+    sha256: 0542d777ee2f2eefbc275e4a6ae2ff793ca1fc14b3a9f34c3a754db1fc525084
+  - start: 0x0e662
+    end: 0x1c820
+    state: unattempted
+    sha256: 566bd106f929585cb48fdacf415bd7a41dcea3754b11de4b79137e87e7562127
   - start: 0x1c820
     end: 0x1c97c
     state: library-candidate
@@ -251,6 +260,20 @@ units:
     notes: >-
       Bucket 0 criterion-3 proof. Matched on first attempt with the
       canonical flag pair. Single-function unit.
+  func_06014608:
+    source: src/1ST_READ/func_06014608.c
+    size: 90
+    status: matched
+    compiler: shc-5.0-r31
+    flags: [-optimize=1, -speed]
+    sha256: 0542d777ee2f2eefbc275e4a6ae2ff793ca1fc14b3a9f34c3a754db1fc525084
+    matched: 2026-07-19
+    notes: >-
+      Bucket 3 calibration campaign, first exact match. Switch dispatcher
+      (step/commit callbacks around a mod-8 phase counter). Isolated-ok
+      (no external bsr, no pool). Campaign seed 0x601460c was a mis-split
+      prologue tail; true start 0x06014608 (+4B earlier). Matched shape 1.
+      Proof: tools/try_match.sh 0x06014608 --size 90.
 
 functions:
   - name: func_06006622

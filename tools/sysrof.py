@@ -238,8 +238,20 @@ def p_section(mod):
 
 
 if __name__ == "__main__":
-    for path in sys.argv[1:]:
+    args = sys.argv[1:]
+    holes_mode = "--holes" in args
+    args = [a for a in args if a != "--holes"]
+    for path in args:
         for m in modules(path):
+            if holes_mode:
+                # Per-code-section relocation holes: offsets whose final bytes
+                # are link-time values, expected to differ in an unlinked
+                # .text extraction (consumed by tools/fndiff.sh annotation).
+                for s in code_sections(m):
+                    for off, nbytes, op, _seg in sorted(s.reloc_holes):
+                        print(f"{m.name}\t{s.name}\t0x{off:x}\t{nbytes}"
+                              f"\top=0x{op:02x}")
+                continue
             p, mask = p_section(m)
             secs = ", ".join(f"{s.name}:{s.length}" for s in m.sections)
             nrel = sum(len(s.reloc_holes) for s in m.sections)
