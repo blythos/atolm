@@ -18,7 +18,12 @@ disc: 1
 disc_path: 1ST_READ.PRG
 size: 253650
 sha256: 2bb6c2d66ec17fe3e2333009f82cd0df29a5e7ac6c407d84077edeec070671c6
-vma_base: 0x06006000   # IP.BIN header field at offset 0xE8 (disc-authoritative)
+vma_base: 0x06006000   # IP.BIN 1st-read address, offset 0xF0 (disc-authoritative;
+                       # ST-040-R4). Confirmed independently by the Ymir savestate
+                       # (all 253650 bytes resident here). NB: offset 0xE8 is the
+                       # MASTER STACK pointer, which for PDS coincidentally also holds
+                       # 0x06006000 — do not read 0xE8 for load addresses (verified
+                       # distinct in 12 other IP.BINs; the load field is 0xF0).
 
 # Ordered, covers [0, size). Code segments include their literal pools and
 # small embedded tables (SEGALOGO precedent: a unit's .text owns its pools);

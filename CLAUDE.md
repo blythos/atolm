@@ -71,7 +71,10 @@ can verify where it stands.
   entered at Bucket 2 as LOCAL-ONLY tooling: the generated project is
   disc-derived and lives in gitignored tools-local/; only the generator
   script, seeds detector, and symbols file are committed.
-- NO second target until SEGALOGO.PRG is complete and checkpointed.
+- NO second MATCHING target until SEGALOGO.PRG is complete and
+  checkpointed. Analysis and infrastructure work on other files (1ST_READ
+  mapping, library identification, per-function calibration proofs) is
+  permitted; only full match campaigns to a completed target are gated.
 - If a task presents as "make X generic for other games" rather than
   "match X", it is out of scope (deferred: Saturn Decomp Kit).
 

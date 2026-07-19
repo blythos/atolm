@@ -11,8 +11,10 @@ uncompressed cereal binary stream; the "Syst" section (4-byte magic)
 serializes a few small fields, then WRAMLow (1 MiB, raw) then WRAMHigh
 (1 MiB, raw), contiguously. Rather than hardcode the small-field sizes
 (they can drift across savestate versions), we CALIBRATE: locate
-1ST_READ.PRG's bytes (its load address 0x06006000 is disc-authoritative,
-IP.BIN offset 0xE8) and derive the WRAMHigh file offset from it, then
+1ST_READ.PRG's bytes (its load address 0x06006000 is disc-authoritative:
+IP.BIN 1st-read-address field, offset 0xF0 — NOT 0xE8, which is the master
+stack pointer that coincidentally equals it for PDS) and derive the
+WRAMHigh file offset from it, then
 sanity-check that offset against the "Syst" magic position (must sit
 1 MiB + a small header past it — asserts the source-derived layout).
 

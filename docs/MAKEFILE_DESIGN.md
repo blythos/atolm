@@ -11,7 +11,7 @@ reproducible — with zero Sega-derived bytes in the repo.
 |-----------------------|------------|--------------|
 | `make setup`          | no         | builds both Docker images (`atolm-shc`, `atolm-cygnus`); runs `toolchain/fetch-shc.sh` (downloads or reuses the pinned sega-saturn-sdks archive, sha256-verified, into gitignored `toolchain/vendor/shc/`) |
 | `make extract`        | yes        | for each `config/targets/*.yaml`: pulls `disc_path` from `ISOs/` via `tools/iso9660.py` into `extracted/`, then **refuses to proceed** unless size and sha256 match the manifest (wrong disc / bad dump caught here) |
-| `make` (all)          | yes        | for each `role: build` target: compiles every `status: matched` function in its container, hash-verifies each against its manifest record, then assembles `build/<TARGET>` from the segment map (compiled bytes for `matched` segments, bytes spliced from `extracted/<TARGET>` for every other state — see config/README.md for the five-state vocabulary, adopted Bucket 2) |
+| `make` (all)          | yes        | for each `role: build` target: compiles every `status: matched` function in its container, hash-verifies each against its manifest record, then assembles `build/<TARGET>` from the segment map (compiled bytes for `matched` segments, bytes spliced from `extracted/<TARGET>` for every other state — see config/README.md for the segment-state vocabulary, adopted Bucket 2, six states since Bucket 3) |
 | `make check`          | yes        | `cmp` + `sha256sum` of `build/<TARGET>` vs `extracted/<TARGET>`; prints per-target PASS/FAIL and per-function match stats; GREEN only on byte-identity |
 | `make check-functions`| **no**     | CI-safe subset: recompiles every `matched` function from committed C and compares the compiled `.text` sha256 to the manifest hash. Hash equality proves the match without any disc content |
 | `make tripwire`       | no         | scans the committed tree (git ls-files) and fails on any binary content: banned extensions, NUL bytes, files matching known Sega-derived hashes |
@@ -46,7 +46,7 @@ The segment map in each `build`-role manifest is ordered and covers
   at build time, locally. Nothing derived from them is ever written inside
   the repo tree (`build/` is gitignored).
 
-Progress metric falls out of the manifest: the full five-state byte split
+Progress metric falls out of the manifest: the full six-state byte split
 (matched is never reported alone).
 
 ## Where verification happens

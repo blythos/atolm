@@ -24,7 +24,7 @@ Top-level keys:
 | `size`     | expected byte size of the extracted file                       |
 | `sha256`   | hash of the extracted file — `make extract` refuses a mismatch |
 | `vma_base` | load address (from IP.BIN or overlay header — disc-authoritative) |
-| `segments` | ordered five-state segment map covering the whole file        |
+| `segments` | ordered six-state segment map covering the whole file         |
 | `units`    | compilation-unit records — the buildable/provable entities     |
 | `functions`| per-function progress records within units                     |
 
@@ -76,7 +76,7 @@ the placeholder mechanism: bytes copied at build time from the
 locally-extracted original, never committed.
 
 **Reporting rule:** every progress line any tool prints, and every README
-stats block, shows the full five-state split. The matched figure is never
+stats block, shows the full six-state split. The matched figure is never
 presented alone.
 
 ### `units` (the hash manifest — byte-proof entities)
