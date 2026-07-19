@@ -3,6 +3,11 @@
 # tools/ghidra_gen.sh; snapshot committed for Bucket 3 review.
 # Known nondeterminism: body size of braf-switch functions (one
 # case: 0x60267ca) can flap between Ghidra runs; entries stable.
+# Bucket 3 caveat: this inventory OVER-seeds (detector seeds bare sts.l pr
+# tails and mid-fn spill pushes as starts) and UNDER-sizes some starts.
+# The 555 size<=4/0-caller rows are triaged in 1ST_READ.suspects.tsv:
+# ~79% are seed-artifacts (not functions). Corrected count ~3,187 (not
+# 3,626). Full regen with the reachability-merge fix is Bucket 4 work.
 # evidence: entry|prologue|bsr|jsr-pool|jmp-pool|ptr32 (sh2_map)
 #           ghidra = found only by Ghidra xref/flow analysis
 # vma	size	callers	evidence
