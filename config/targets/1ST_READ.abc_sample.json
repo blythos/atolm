@@ -1,0 +1,27 @@
+{
+ "0x06006764_20B_1br": ["614221188904634273e85035cb011305000b0009", [
+   "void T(pp) int **pp; { if(*pp){ int *q=(int*)((char*)*pp-24); q[5]|=1; } }"
+ ]],
+ "0x0602af28_22B_loop": ["e6084610634125318541740681518ff87506000b0009", [
+   "void T(d,s) short *d,*s; { int n=8; do{ d[0]=s[0]; d[1]=s[1]; s+=3; d+=3; }while(--n); }",
+   "void T(d,s) short *d,*s; { int n=8; do{ d[0]=s[0]; d[1]=s[1]; d+=3; s+=3; }while(--n); }"
+ ]],
+ "0x06026f3c_28B_cksum": ["e600e701740475fc62444510622c07277701031a8ff8363c000b6063", [
+   "int T(p,n) unsigned char *p; int n; { int sum=0; int w=1; int t; p+=4; n-=4; do { t=(int)*p++; sum+=t*w; w++; } while(--n); return sum; }"
+ ]],
+ "0x06030f42_14B_loop": ["e520144145108ffc7408000b0009", [
+   "void T(p) long *p; { int n=32; do { p[1]=(long)p; p+=2; } while(--n); }"
+ ]],
+ "0x06007796_12B_stores": ["60538041e3038042000b2430", [
+   "void T(p,v) unsigned char *p; int v; { p[1]=v; p[2]=v; p[0]=3; }"
+ ]],
+ "0x06007788_14B_stores": ["e000e302804160538042000b2430", [
+   "void T(p,v) unsigned char *p; int v; { p[1]=0; p[2]=v; p[0]=2; }"
+ ]],
+ "0x0600de4a_16B_straight": ["74285349335c1439524b325c000b142b", [
+   "void T(b,d) char *b; int d; { int *q=(int*)(b+40); q[9]+=d; q[11]+=d; }"
+ ]],
+ "0x0600dba4_24B_br_loop": ["4621462146158b0562634208342c46108ffd2456000b0009", [
+   "void T(p,v,n) int *p,v,n; { n>>=2; if(n>0){ p+=n; do{ *--p=v; }while(--n); } }"
+ ]]
+}
