@@ -165,6 +165,42 @@ def close_unit(seed, insn, starts, endfile, rel=None, poolw=None):
     return ms, ms[0], unit_end
 
 
+def minimal_unit(seed, insn, starts, endfile):
+    """The minimal CONTIGUOUS reproducing unit for matching `seed`'s bytes:
+    grow the region over OUTGOING references only (bsr targets + pool words a
+    member loads). A function's bytes depend on what it references (compile-time
+    bsr displacement, pool placement), NOT on who calls it — so unlike the
+    analysis closure (`close_unit`, undirected), a widely-called leaf does not
+    drag in its callers. Returns (sorted members, unit_start, unit_end)."""
+    lo = seed
+    end = flow_extent(seed, insn)
+    changed = True
+    while changed:
+        changed = False
+        spanned = [s for s in starts if lo <= s < end]
+        for s in spanned:
+            _, bsrs, pools = refs_of(s, insn)
+            for r in list(bsrs) + [p for p in pools if VMA <= p < endfile]:
+                if not (VMA <= r < endfile):
+                    continue
+                if r < lo:
+                    o = owner(r, starts)
+                    if o is not None:
+                        lo = o
+                        changed = True
+                elif r >= end:
+                    end = max(end, r + 4)
+                    changed = True
+        # extend end to cover any member's full code extent
+        for s in [s for s in starts if lo <= s < end]:
+            ce = flow_extent(s, insn)
+            if ce > end:
+                end = ce
+                changed = True
+    members = sorted(s for s in starts if lo <= s < end)
+    return members, lo, end
+
+
 def has_internal_bsr(members, rel):
     _, adj, _, _, _ = rel
     ms = set(members)

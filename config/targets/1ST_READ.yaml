@@ -276,6 +276,20 @@ units:
       (no external bsr, no pool). Campaign seed 0x601460c was a mis-split
       prologue tail; true start 0x06014608 (+4B earlier). Matched shape 1.
       Proof: tools/try_match.sh 0x06014608 --size 90.
+  func_06007788:
+    source: src/1ST_READ/func_06007788.c
+    size: 14
+    status: matched
+    compiler: shc-5.0-r31
+    flags: [-optimize=1, -speed, -macsave=0]
+    sha256: 0ca0a6d21682f705c6dd2b8932a2f860b39ec9863817a2c2d9306fc4be3a7653
+    matched: 2026-07-20
+    notes: >-
+      Bucket 4 STOP 2 tiering test. 3-byte record-header setter
+      ([0]=2,[1]=0,[2]=arg). Found by the cheap-tier permuter
+      (tools/permute.py) and confirmed byte-identical by try_match. Leaf,
+      position-robust (no scheduling freedom). Proof:
+      tools/try_match.sh 0x06007788 --size 14.
 
 functions:
   - name: func_06006622
