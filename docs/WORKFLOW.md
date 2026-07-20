@@ -60,7 +60,7 @@ representative — no cherry-picking easy wins to flatter the match rate.
 ```
 tools/try_match.sh <vma> [--size N] [--src FILE] [--flags "..."]
 ```
-extract → compile (canonical shc-5.0-r31, `-optimize=1 -speed`, in the
+extract → compile (canonical shc-5.0-r31, `-optimize=1 -speed -macsave=0`, in the
 container) → cmp/sha256 → on MATCH prints the manifest record with
 tool-generated proof values; on NON-MATCH prints differing-byte count,
 first divergence, relocation-hole annotation (from the SYSROF object via

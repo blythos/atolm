@@ -1,9 +1,12 @@
 # Proposed charter amendments — Bucket 4 STOP 1 (for human review)
 
-**Status:** PROPOSED. Per the scribe rule (charter §intro), the agent never
-amends charter content on its own judgment; these blocks are applied verbatim
-to `docs/PROJECT_CHARTER.md` (and the noted sibling docs) only after approval
-at this STOP-1 review. Nothing here is live until you apply it.
+**Status:** APPLIED 2026-07-20 (human approved at STOP-1 review). Blocks A–D
+applied to `docs/PROJECT_CHARTER.md` (§0 flags, §4 permuter, §7 ledger ×2);
+canonical flags updated in tools/try_match.sh, docs/WORKFLOW.md, config/README.md
+and the two matched-unit records in config/targets/1ST_READ.yaml (re-verified);
+superseded-count pointers added to the four historical FINDINGS. This document
+is retained as the amendment ledger for the STOP-1 batch. Per the scribe rule
+(charter §intro), the agent applies only human-approved verbatim blocks.
 
 ---
 

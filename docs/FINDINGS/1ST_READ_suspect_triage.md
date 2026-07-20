@@ -1,5 +1,7 @@
 # 1ST_READ.PRG — 555-suspect triage (Bucket 3 deliverable 5)
 
+> **Superseded count (Bucket 4 STOP 1, 2026-07-20):** inventory figures in this file (~3,600/~3,626/~3,187 functions, 17.5% mis-split, 1,451 population) predate the boundary-detector rewrite. The measured corrected inventory is **1,941**; see docs/FINDINGS/1ST_READ_boundary_detector.md. The structural conclusions here are unaffected.
+
 **Date:** 2026-07-19
 **Input:** the 555 Bucket-2 "suspects" (inventory functions with size ≤4 B and
 0 callers), flagged as the uncertain tail of the segmentation.

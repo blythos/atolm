@@ -94,7 +94,7 @@ units:
     status: attempted        # unattempted | attempted | matched
     findings: docs/FINDINGS/SEGALOGO_segalogo.md  # required when attempted
     compiler: shc-5.0-r31    # key into compilers.yaml
-    flags: [-optimize=1, -speed]
+    flags: [-optimize=1, -speed, -macsave=0]   # canonical (Bucket 4 STOP 1)
     sha256: b7e93583...      # hash of the original bytes this unit must hit
     matched: 2026-07-16      # date, once status: matched
 ```

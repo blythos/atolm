@@ -1,5 +1,7 @@
 # Bucket 4 structural input: the matching unit is the translation unit, not the function
 
+> **Superseded count (Bucket 4 STOP 1, 2026-07-20):** inventory figures in this file (~3,600/~3,626/~3,187 functions, 17.5% mis-split, 1,451 population) predate the boundary-detector rewrite. The measured corrected inventory is **1,941**; see docs/FINDINGS/1ST_READ_boundary_detector.md. The structural conclusions here are unaffected.
+
 **Date:** 2026-07-19 (Bucket 3 calibration campaign, structural finding)
 **Status:** decision-grade; **the single most important result of Bucket 3.**
 It redefines Bucket 4's unit of work and seeds a proposed charter amendment

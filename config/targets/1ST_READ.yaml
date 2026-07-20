@@ -254,18 +254,20 @@ units:
     size: 18
     status: matched
     compiler: shc-5.0-r31
-    flags: [-optimize=1, -speed]
+    flags: [-optimize=1, -speed, -macsave=0]
     sha256: 66e77b5a2c5d36fbde1ec410c1b33a2dbb6d30c38eb176e3202df0034bdfc3d5
     matched: 2026-07-15
     notes: >-
       Bucket 0 criterion-3 proof. Matched on first attempt with the
-      canonical flag pair. Single-function unit.
+      canonical flag pair. Single-function unit. Re-verified byte-identical
+      (same sha256) under the Bucket-4 canonical flags with -macsave=0 added
+      (no multiply, so macsave is a no-op here).
   func_06014608:
     source: src/1ST_READ/func_06014608.c
     size: 90
     status: matched
     compiler: shc-5.0-r31
-    flags: [-optimize=1, -speed]
+    flags: [-optimize=1, -speed, -macsave=0]
     sha256: 0542d777ee2f2eefbc275e4a6ae2ff793ca1fc14b3a9f34c3a754db1fc525084
     matched: 2026-07-19
     notes: >-

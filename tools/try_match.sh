@@ -9,7 +9,9 @@
 #   --size N       original byte span to match (default: distance to the
 #                  next function start in the inventory — includes the
 #                  literal pool, per the unit-owns-its-pools rule)
-#   --flags "..."  compiler flags (default: -optimize=1 -speed)
+#   --flags "..."  compiler flags (default: -optimize=1 -speed -macsave=0;
+#                  macsave=0 = PDS's caller-saved MACL/MACH convention,
+#                  Bucket 4 STOP 1 — see docs/FINDINGS/1ST_READ_proof_of_machine.md)
 #
 # On MATCH: prints tool-generated proof values (sizes, sha256) ready for the
 # manifest — never hand-copy hashes from anywhere else (charter §5).
@@ -22,7 +24,7 @@ TSV="$REPO_ROOT/config/targets/1ST_READ.functions.tsv"
 PRG="$REPO_ROOT/extracted/1ST_READ.PRG"
 VMA_BASE=$((0x06006000))
 
-VMA=""; SRC=""; SIZE=""; FLAGS="-optimize=1 -speed"
+VMA=""; SRC=""; SIZE=""; FLAGS="-optimize=1 -speed -macsave=0"
 while [ $# -gt 0 ]; do
     case "$1" in
         --src) SRC="$2"; shift 2;;

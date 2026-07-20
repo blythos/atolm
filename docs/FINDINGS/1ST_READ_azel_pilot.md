@@ -1,5 +1,7 @@
 # Azel structural-matching pilot — yield report (Bucket 3 deliverable 4)
 
+> **Superseded count (Bucket 4 STOP 1, 2026-07-20):** inventory figures in this file (~3,600/~3,626/~3,187 functions, 17.5% mis-split, 1,451 population) predate the boundary-detector rewrite. The measured corrected inventory is **1,941**; see docs/FINDINGS/1ST_READ_boundary_detector.md. The structural conclusions here are unaffected.
+
 **Date:** 2026-07-19
 **Bounded:** one session; target ≥100 new hypothesis-azel names for 1ST_READ
 via call-graph propagation from the 22 known JP/US pairs + 60 library-

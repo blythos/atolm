@@ -1,5 +1,7 @@
 # Bucket 3 calibration campaign — results & forecast
 
+> **Superseded count (Bucket 4 STOP 1, 2026-07-20):** inventory figures in this file (~3,600/~3,626/~3,187 functions, 17.5% mis-split, 1,451 population) predate the boundary-detector rewrite. The measured corrected inventory is **1,941**; see docs/FINDINGS/1ST_READ_boundary_detector.md. The structural conclusions here are unaffected.
+
 **Date:** 2026-07-19
 **Sample:** 40 functions, `tools/campaign_select.py` seed 3 (stratified random
 by span over the 1,451 prologue-confirmed seeds in `unattempted` segments),
