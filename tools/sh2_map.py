@@ -167,6 +167,97 @@ class Mapper:
 
 TERMINATORS = ("rts", "bra", "jmp", "rte")
 
+# --- Reachability merge (Bucket 4 STOP 1, Finding 1 fix) --------------------
+# The prologue scanner over-seeds two ways: (a) a bare `sts.l pr,@-r15` that is
+# really a prologue TAIL (SHC schedules an instruction between the register
+# pushes and the pr push), and (b) a mid-function `mov.l rN,@-r15` argument
+# spill decoded as a prologue push. Both produce a spurious start strictly
+# INTERIOR to the real function's flow extent. We drop a seed iff its evidence
+# is exactly {prologue} (never a call target / ptr32 / entry — those have
+# independent corroboration), it is not at a hard boundary (immediately after
+# an unconditional delayed terminator or pool/pad — a real neighbour start),
+# and it lies inside the reachability extent of a preceding kept seed.
+_DELAYED = {"bra", "bsr", "braf", "bsrf", "jmp", "jsr", "rts", "rte",
+            "bt.s", "bf.s", "bt/s", "bf/s"}
+_COND = {"bt", "bf", "bt.s", "bf.s", "bt/s", "bf/s"}
+_CALL = {"bsr", "jsr", "bsrf", "jsrf"}
+# bra is deliberately EXCLUDED: a seed sitting right after a `bra` may be its
+# delay-slot push (contamination), not a real neighbour — do not rescue it.
+_UNCOND_TERM = {"rts", "rte", "jmp", "braf", "bsrf"}
+
+
+def _branch_target(ops):
+    m = re.match(r"(0x[0-9a-f]+)", ops)
+    return int(m.group(1), 16) if m else None
+
+
+def flow_extent(start, insn_map):
+    """Reachability code-end for `start`: sweep fall-through + intra-function
+    branches; calls (bsr/jsr) are non-extending (return lands at pc+4); stop
+    each path at rts/rte/indirect-jmp/braf/bsrf. Trailing literal pools are
+    naturally excluded (unreachable as instructions)."""
+    seen = set()
+    work = [start]
+    code_end = start
+    while work:
+        pc = work.pop()
+        if pc in seen or pc not in insn_map:
+            continue
+        seen.add(pc)
+        mnem, ops = insn_map[pc]
+        end = pc + 4 if mnem in _DELAYED else pc + 2
+        code_end = max(code_end, end)
+        tgt = _branch_target(ops)
+        if mnem in _CALL:
+            work.append(pc + 4)                 # return after delay slot
+        elif mnem in _COND:
+            if tgt is not None:
+                work.append(tgt)
+            work.append(end)                    # fall through
+        elif mnem == "bra":
+            if tgt is not None:
+                work.append(tgt)                # no fall-through
+        elif mnem in ("rts", "rte", "jmp", "braf", "bsrf"):
+            pass                                # path ends
+        else:
+            work.append(end)                    # ordinary fall-through
+    return code_end
+
+
+def merge_interior_seeds(starts, insn_map, pool_widths):
+    """Split `starts` into kept starts and merged (interior over-seeds).
+    `pool_widths` maps pool addr -> slot width (2 or 4). Returns
+    (kept_addrs, merged_addrs) — both sorted lists."""
+    pool4 = {a for a, w in pool_widths.items() if w == 4}
+
+    def is_pool(a):
+        return a in pool_widths or ((a - 2) in pool4)
+
+    def hard_boundary(a):
+        # a real neighbour start: pool/pad immediately before, or right after
+        # an unconditional delayed terminator (+ optional nop delay slot).
+        if is_pool(a - 2):
+            return True
+        p4 = insn_map.get(a - 4)
+        if p4 and p4[0] in _UNCOND_TERM:
+            return True
+        p2 = insn_map.get(a - 2)
+        if p2 and p2[0] == "nop" and p4 and p4[0] in ("rts", "rte", "jmp",
+                                                      "braf"):
+            return True
+        return False
+
+    kept, merged, last_end = [], [], None
+    for a in sorted(starts):
+        prologue_only = set(starts[a]["evidence"]) == {"prologue"}
+        interior = last_end is not None and a < last_end
+        if prologue_only and interior and not hard_boundary(a):
+            merged.append(a)
+        else:
+            kept.append(a)
+            last_end = flow_extent(a, insn_map)
+    return kept, merged
+
 
 def ptr32_starts(data, vma_base, insn_by_addr, pool):
     """Function-pointer-table evidence: 4-aligned BE32 words holding an
@@ -219,6 +310,13 @@ def main():
             starts.setdefault(addr, {"evidence": []})["evidence"].append(
                 "ptr32")
 
+    # Reachability merge (Bucket 4 STOP 1, Finding 1): drop prologue-only seeds
+    # strictly interior to a preceding function's flow extent (over-seeded
+    # prologue tails / mid-function arg spills). Corroborated seeds (call
+    # target / ptr32 / entry) are never dropped.
+    insn_map = {a: (mn, op) for a, mn, op in mapper.insns}
+    kept, merged = merge_interior_seeds(starts, insn_map, mapper.pool)
+
     out = {
         "target": target_name,
         "vma_base": vma_base,
@@ -227,8 +325,11 @@ def main():
         "instruction_words": len(insns),
         "pool_slots": len(mapper.pool),
         "pool_bytes": sum(mapper.pool.values()),
+        "seeds_before_merge": len(starts),
+        "seeds_merged": len(merged),
+        "merged_seeds": [{"vma": a, **starts[a]} for a in merged],
         "functions": [
-            {"vma": a, **starts[a]} for a in sorted(starts)],
+            {"vma": a, **starts[a]} for a in kept],
         "pool_addrs": sorted(mapper.pool),
         "pool_widths": {f"{a:#x}": w for a, w in sorted(mapper.pool.items())},
         "pool_values": {f"{a:#x}": v
@@ -238,10 +339,11 @@ def main():
     with open(dest, "w") as f:
         json.dump(out, f, indent=1)
     ev_count = {}
-    for s in starts.values():
-        for e in s["evidence"]:
+    for a in kept:
+        for e in starts[a]["evidence"]:
             ev_count[e] = ev_count.get(e, 0) + 1
-    print(f"sh2_map: {target_name}: {len(starts)} function starts "
+    print(f"sh2_map: {target_name}: {len(kept)} function starts "
+          f"({len(starts)} seeded - {len(merged)} interior over-seeds merged), "
           f"(evidence: {ev_count}), "
           f"{len(mapper.pool)} pool slots ({out['pool_bytes']} bytes), "
           f"fixpoint in {mapper.passes} passes -> {dest}")
