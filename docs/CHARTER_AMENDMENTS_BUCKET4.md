@@ -83,10 +83,15 @@ Bucket-0.5 battery — `-macsave` behaviour is a candidate discriminator.
 
 ---
 
-# STOP-3 blocks (PROPOSED — for human review at this checkpoint)
+# STOP-3 blocks (APPLIED 2026-07-20 — human ratified all three decisions)
 
-**Status:** PROPOSED. Not applied. These supersede Block D's provisional lean
-(the STOP-2/2.5 evidence reversed it). Apply verbatim only on approval.
+**Status:** APPLIED. Blocks E–I applied: §7 ledger (STOP 2/2.5/3 + Bucket 4
+CLOSED) with the explicit unit-address note; §4 position-dependence + two-ceiling
+forecast (Block F) and revised permuter decision (Block G, which marks the
+STOP-1 Block D text SUPERSEDED in place); CLAUDE.md permuter clause (Block H,
+**dedup sentence dropped per review — dedup stays deferred to Bucket 5**);
+attribution finding 6 pointer (Block I). Per the scribe rule, only these
+human-approved verbatim blocks were applied.
 
 ## Block E — §7 ledger: Bucket 4 STOP 2 / 2.5 / 3
 
@@ -149,9 +154,10 @@ Bucket-0.5 battery — `-macsave` behaviour is a candidate discriminator.
 > clause with: "PERMUTER decision made at STOP 3: decomp-permuter NOT adopted
 > (residuals are TU-context/version-driven, not source-permutable). Scale-out
 > unit is the TU-ordered reconstruction (tu_cluster/tu_build). Any context/
-> position-aware permuter is deferred behind a measured cost trigger." The
-> dedup/similarity-clustering item may move from banned to permitted for Bucket 4
-> (templated-overlay dedup is now expected-high-value), at the human's option.
+> position-aware permuter is deferred behind a measured cost trigger."
+>
+> (Dedup/similarity-clustering stays deferred — that scope change is a Bucket 5
+> design decision, made explicitly at the Bucket 5 interview, not toggled here.)
 
 ## §8 ritual checks (this checkpoint)
 

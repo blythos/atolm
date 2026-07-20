@@ -69,10 +69,12 @@ can verify where it stands.
 - NO reimplementation code, renderers, SDL, viewers.
 - asm-differ landed in Bucket 3 (tools/fndiff.sh, adapted to our
   SHC/container output; the clone is gitignored in tools-local/). The
-  PERMUTER remains deferred pending the human decision at STOP 3
-  (recommended: adopt scoped to drift families #3/#4 AFTER Bucket 4
-  provides bounded translation units). NO dedup/similarity-clustering
-  infrastructure yet (Bucket 4). Ghidra entered at Bucket 2 as LOCAL-ONLY
+  PERMUTER decision made at STOP 3: decomp-permuter NOT adopted (the
+  #3/#4 residuals are translation-unit-context-driven or version-blocked,
+  not source-permutable). The scale-out unit is TU-ordered reconstruction
+  (tools/tu_cluster.py + tools/tu_build.py); any context/position-aware
+  permuter is deferred behind a measured cost trigger. NO
+  dedup/similarity-clustering infrastructure yet (decide at Bucket 5). Ghidra entered at Bucket 2 as LOCAL-ONLY
   tooling: the generated project is disc-derived and lives in gitignored
   tools-local/; only the generator script, seeds detector, and symbols
   file are committed.
